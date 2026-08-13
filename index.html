@@ -35,10 +35,10 @@
             </div>
         </div>
 
-        <!-- Connection error banner (hidden unless something is actually wrong) -->
+        <!-- Connection Error Banner -->
         <div id="conn-error-banner" class="hidden bg-rose-950/60 border border-rose-600 rounded-xl p-2 mb-2 text-[11px] text-rose-300">
             <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-            <span id="conn-error-text">Connection issue.</span>
+            <span id="conn-error-text">Connection issue. Check Firebase rules.</span>
         </div>
 
         <!-- Saturday Target Countdown Banner -->
@@ -47,56 +47,41 @@
             <div id="exam-timer" class="text-sm font-black text-amber-400 code-font mt-0.5">Calculating...</div>
         </div>
 
-        <div class="flex items-center justify-between gap-2 bg-slate-800 p-2 rounded-xl text-xs">
-            <div class="flex items-center gap-1 overflow-hidden">
-                <span class="text-slate-400">Room:</span>
-                <span id="room-id-display" class="font-bold text-amber-400 code-font truncate max-w-[80px]">...</span>
-                <button onclick="changeRoom()" class="text-slate-400 hover:text-white ml-1">
-                    <i class="fa-solid fa-pen"></i>
-                </button>
+        <!-- Restricted 4-Lobby Selector Bar -->
+        <div class="bg-slate-800 p-2 rounded-xl text-xs space-y-1.5">
+            <div class="flex items-center justify-between">
+                <span class="text-slate-400 font-semibold">Select Lobby:</span>
+                <span id="active-lobby-tag" class="font-bold text-amber-400 code-font uppercase">Lobby Alpha</span>
             </div>
-            <div class="flex gap-1">
-                <button onclick="createNewRoom()" class="bg-slate-700 text-slate-200 px-2 py-1 rounded-lg font-bold">
-                    <i class="fa-solid fa-plus"></i> New
-                </button>
-                <button onclick="shareWhatsApp()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-lg font-bold flex items-center gap-1">
-                    <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
-                </button>
-                <button onclick="shareRoomLink()" class="bg-blue-600 text-white px-2 py-1 rounded-lg font-bold">
-                    <i class="fa-solid fa-share-nodes"></i>
-                </button>
+            <div class="grid grid-cols-4 gap-1">
+                <button onclick="switchLobby('lobby-alpha')" id="btn-lobby-alpha" class="py-1.5 rounded-lg font-bold text-[11px] bg-blue-600 text-white">Alpha</button>
+                <button onclick="switchLobby('lobby-beta')" id="btn-lobby-beta" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Beta</button>
+                <button onclick="switchLobby('lobby-gamma')" id="btn-lobby-gamma" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Gamma</button>
+                <button onclick="switchLobby('lobby-delta')" id="btn-lobby-delta" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Delta</button>
             </div>
         </div>
     </header>
 
     <main class="p-4 space-y-4 max-w-lg mx-auto">
 
-        <!-- Online Players Directory & Search -->
+        <!-- Online Players Directory -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
             <div class="flex items-center justify-between">
                 <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-globe text-emerald-400"></i> Online Players Directory
+                    <i class="fa-solid fa-globe text-emerald-400"></i> Active Lobby Directory
                 </h2>
                 <span class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold" id="online-count">0 Online</span>
             </div>
 
-            <!-- Player Search Bar -->
-            <div class="relative my-2">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
-                <input type="text" id="player-search-input" onkeyup="filterOnlinePlayers()" 
-                       placeholder="Search player name or ID..." 
-                       class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-            </div>
-
-            <div id="online-players-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                <div class="text-xs text-slate-500 text-center py-2">Searching for players...</div>
+            <div id="online-players-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                <div class="text-xs text-slate-500 text-center py-2">Loading players...</div>
             </div>
         </div>
 
         <!-- Room Participants Progress -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <i class="fa-solid fa-users text-amber-400"></i> Room Participants
+                <i class="fa-solid fa-users text-amber-400"></i> Lobby Leaderboard
             </h2>
 
             <!-- My Progress Card -->
@@ -111,11 +96,10 @@
                 </div>
             </div>
 
-            <!-- Opponent Card -->
-            <div id="opponent-container">
+            <!-- Other Players Container -->
+            <div id="lobby-members-container" class="space-y-2">
                 <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
-                    <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                    Waiting for 2nd player to join room...
+                    Waiting for players to join this lobby...
                 </div>
             </div>
         </div>
@@ -153,7 +137,7 @@
             </div>
         </div>
 
-        <!-- Days Selector Header -->
+        <!-- Schedule & Tasks Header -->
         <div class="flex items-center justify-between">
             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Schedule & Tasks</h3>
             <button onclick="openAddTaskModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
@@ -173,40 +157,33 @@
 
     </main>
 
-    <!-- Modal: Login / Set Display Name -->
-    <div id="login-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <!-- Modal: Mandatory Lobby & Name Selection -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4">
             <div class="text-center">
                 <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
                     <i class="fa-solid fa-user-astronaut"></i>
                 </div>
-                <h3 class="text-base font-bold text-white">Player Login</h3>
-                <p class="text-xs text-slate-400">Set your name so friends can invite you!</p>
+                <h3 class="text-base font-bold text-white">Join JEE Sprint Lobby</h3>
+                <p class="text-xs text-slate-400">Set your name and choose one of the 4 official lobbies.</p>
             </div>
 
             <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Enter Your Name / Handle</label>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Player Name</label>
                 <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex, JEE_Master" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
             </div>
 
-            <button onclick="savePlayerName()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl">Save & Continue</button>
-        </div>
-    </div>
-
-    <!-- Modal: Incoming Challenge Alert -->
-    <div id="invite-alert-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl p-5 w-full max-w-sm space-y-4 text-center">
-            <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto text-xl animate-bounce">
-                <i class="fa-solid fa-gamepad"></i>
-            </div>
             <div>
-                <h3 class="text-sm font-bold text-white">Incoming Room Challenge!</h3>
-                <p id="invite-modal-text" class="text-xs text-slate-300 mt-1">Someone invited you to join their room.</p>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Select Room Lobby</label>
+                <select id="login-lobby-select" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+                    <option value="lobby-alpha">Lobby Alpha</option>
+                    <option value="lobby-beta">Lobby Beta</option>
+                    <option value="lobby-gamma">Lobby Gamma</option>
+                    <option value="lobby-delta">Lobby Delta</option>
+                </select>
             </div>
-            <div class="flex gap-2">
-                <button id="accept-invite-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl">Accept & Join</button>
-                <button onclick="closeInviteModal()" class="flex-1 bg-slate-800 text-slate-300 font-bold text-xs py-2.5 rounded-xl">Decline</button>
-            </div>
+
+            <button onclick="savePlayerName()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl">Enter Lobby</button>
         </div>
     </div>
 
@@ -258,7 +235,7 @@
         const firebaseConfig = {
           apiKey: "AIzaSyAf7gaZu52OpJXRZoOFV-RBsw-EKdW7lqQ",
           authDomain: "lets-85076.firebaseapp.com",
-          databaseURL: "https://lets-85076-default-rtdb.firebaseio.com",
+          databaseURL: "https://lets-85076-default-rtdb.asia-southeast1.firebasedatabase.app",
           projectId: "lets-85076",
           storageBucket: "lets-85076.firebasestorage.app",
           messagingSenderId: "183210284372",
@@ -268,16 +245,16 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        const ALLOWED_LOBBIES = ['lobby-alpha', 'lobby-beta', 'lobby-gamma', 'lobby-delta'];
+
         const defaultTasks = [
             { id: "td_1", day: "today", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Notes & High-Yield Capture", xp: 300 },
             { id: "td_2", day: "today", time: "06:00 PM – 08:30 PM", title: "Maths High-Yield PYQ Sprint (Calculus/Algebra)", xp: 250 },
             { id: "td_3", day: "today", time: "09:00 PM – 11:15 PM", title: "Physics & Organic Chemistry Practice Drills", xp: 250 },
-
             { id: "fri_1", day: "fri", time: "06:00 AM – 07:30 AM", title: "Morning Memory Recall: Inorganic / Organic Formulas", xp: 180 },
             { id: "fri_2", day: "fri", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: High-Priority Doubt Resolution", xp: 300 },
             { id: "fri_3", day: "fri", time: "06:00 PM – 08:15 PM", title: "Maths High-Yield Problem Solving Session", xp: 250 },
             { id: "fri_4", day: "fri", time: "09:00 PM – 11:00 PM", title: "Pre-Exam Formula & High-Frequency Error Log Scan", xp: 250 },
-
             { id: "sat_1", day: "sat", time: "06:00 AM – 07:30 AM", title: "Quick Mind Warmup: Formula Sheet & Key Reactions", xp: 200 },
             { id: "sat_2", day: "sat", time: "08:00 AM – 11:00 AM", title: "🎯 JEE MAJOR TEST ATTEMPT (08:00 AM)", xp: 500 },
             { id: "sat_3", day: "sat", time: "11:30 AM – 01:00 PM", title: "Post-Exam Quick Error & Score Analysis", xp: 250 }
@@ -294,13 +271,12 @@
         let myUserName = localStorage.getItem('jee_my_user_name') || '';
 
         const urlParams = new URLSearchParams(window.location.search);
-        let roomID = urlParams.get('room') || localStorage.getItem('jee_room_id') || 'jee-battle-1';
-        localStorage.setItem('jee_room_id', roomID);
+        let currentLobby = urlParams.get('lobby') || localStorage.getItem('jee_current_lobby') || 'lobby-alpha';
+        if (!ALLOWED_LOBBIES.includes(currentLobby)) currentLobby = 'lobby-alpha';
 
         let currentTab = 'today';
         let myData = { completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, name: myUserName };
-        let roomPlayers = {};
-        let cachedOnlineUsers = {};
+        let lobbyPlayers = {};
 
         window.onload = function() {
             if (!myUserName) {
@@ -309,20 +285,14 @@
                 updateNameDisplay();
             }
 
-            document.getElementById('room-id-display').innerText = roomID;
+            updateLobbyUIButtons();
             loadLocalMyData();
             renderTasks();
             monitorConnectionState();
             setupFirebaseSync();
-            setupPresenceAndInvites();
             startCountdownTimer();
         };
 
-        // --- NEW: real connection state + clear error surfacing ---
-        // Firebase's ".info/connected" tells us the actual socket state,
-        // and error callbacks on every listener let us show *why* sync
-        // isn't working (almost always: database rules deny read/write)
-        // instead of leaving the header stuck on a spinner forever.
         function monitorConnectionState() {
             db.ref('.info/connected').on('value', (snap) => {
                 const statusEl = document.getElementById('sync-status');
@@ -356,11 +326,14 @@
 
         function openLoginModal() {
             document.getElementById('login-name-input').value = myUserName;
+            document.getElementById('login-lobby-select').value = currentLobby;
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
         function savePlayerName() {
             const input = document.getElementById('login-name-input').value.trim();
+            const selectedLobby = document.getElementById('login-lobby-select').value;
+
             if (!input) {
                 alert("Please enter a name!");
                 return;
@@ -369,11 +342,15 @@
             myData.name = myUserName;
             localStorage.setItem('jee_my_user_name', myUserName);
             updateNameDisplay();
+
             document.getElementById('login-modal').classList.add('hidden');
             
-            saveLocalMyData();
-            pushMyData();
-            updateOnlinePresence();
+            if (selectedLobby !== currentLobby) {
+                switchLobby(selectedLobby);
+            } else {
+                saveLocalMyData();
+                pushMyData();
+            }
         }
 
         function updateNameDisplay() {
@@ -381,184 +358,80 @@
             document.getElementById('my-card-name').innerText = `YOU (${myUserName || 'Device'})`;
         }
 
-        function saveTaskDatabase() {
-            localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
-            db.ref(`rooms/${roomID}/sharedTasks`).set(taskDatabase).catch((err) => {
-                console.error("Failed to save shared tasks:", err);
-                showConnError("Couldn't save to the shared room (permission denied). Your change is saved locally only.");
+        function switchLobby(newLobby) {
+            if (!ALLOWED_LOBBIES.includes(newLobby)) return;
+
+            // Cleanup disconnect handler on old path
+            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
+            db.ref(`lobbies/${currentLobby}`).off();
+
+            currentLobby = newLobby;
+            localStorage.setItem('jee_current_lobby', currentLobby);
+
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?lobby=' + currentLobby;
+            window.history.pushState({path: newUrl}, '', newUrl);
+
+            updateLobbyUIButtons();
+            loadLocalMyData();
+            setupFirebaseSync();
+        }
+
+        function updateLobbyUIButtons() {
+            document.getElementById('active-lobby-tag').innerText = currentLobby.replace('-', ' ');
+
+            ALLOWED_LOBBIES.forEach(lobby => {
+                const btn = document.getElementById(`btn-${lobby}`);
+                if (lobby === currentLobby) {
+                    btn.className = "py-1.5 rounded-lg font-bold text-[11px] bg-blue-600 text-white shadow";
+                } else {
+                    btn.className = "py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300 hover:bg-slate-600";
+                }
             });
         }
 
         function setupFirebaseSync() {
-            const roomRef = db.ref(`rooms/${roomID}`);
+            const lobbyRef = db.ref(`lobbies/${currentLobby}`);
 
-            roomRef.on('value', (snapshot) => {
+            lobbyRef.on('value', (snapshot) => {
                 const val = snapshot.val() || {};
-                roomPlayers = val.players || {};
-                
-                if (val.sharedTasks) {
-                    taskDatabase = val.sharedTasks;
-                    localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
-                }
+                lobbyPlayers = val.players || {};
 
-                if (roomPlayers[myUserId]) {
-                    myData = roomPlayers[myUserId];
+                if (lobbyPlayers[myUserId]) {
+                    myData = lobbyPlayers[myUserId];
                     myData.name = myUserName;
                     saveLocalMyData();
                 } else {
                     pushMyData();
                 }
 
-                registerRoomDisconnectCleanup();
+                registerDisconnectCleanup();
                 updateUI();
                 hideConnError();
             }, (error) => {
-                // This fires on permission-denied or any other read failure.
-                // Without this callback the app just sits on a spinner forever.
-                console.error("Room sync error:", error);
-                showConnError(`Can't sync with room "${roomID}": ${error.message}. This usually means the Firebase Realtime Database rules don't allow read/write access — check the rules in the Firebase console.`);
+                console.error("Lobby sync error:", error);
+                showConnError(`Sync error: ${error.message}. Ensure Firebase Realtime Database Security Rules are set to public (.read: true, .write: true).`);
             });
         }
 
-        // Make sure a player disappears from the room list when they close
-        // the tab / lose connection, instead of staying "in room" forever.
-        function registerRoomDisconnectCleanup() {
-            db.ref(`rooms/${roomID}/players/${myUserId}`).onDisconnect().remove();
-        }
-
-        function setupPresenceAndInvites() {
-            updateOnlinePresence();
-
-            // Listen to all active player presence nodes
-            db.ref('presence').on('value', (snapshot) => {
-                cachedOnlineUsers = snapshot.val() || {};
-                filterOnlinePlayers();
-            }, (error) => {
-                console.error("Presence listener error:", error);
-                document.getElementById('online-players-list').innerHTML =
-                    `<div class="text-xs text-rose-400 text-center py-2">Can't load online players: ${error.message}</div>`;
-                showConnError(`Can't read online players: ${error.message}. Check Firebase database rules.`);
-            });
-
-            // Listen for direct invites targetting this user ID
-            db.ref(`invites/${myUserId}`).on('value', (snapshot) => {
-                const invite = snapshot.val();
-                if (invite && invite.roomID !== roomID) {
-                    showInviteModal(invite);
-                }
-            }, (error) => {
-                console.error("Invite listener error:", error);
-            });
-        }
-
-        function updateOnlinePresence() {
-            if (!myUserId) return;
-            const myPresenceRef = db.ref(`presence/${myUserId}`);
-            const payload = {
-                name: myUserName || 'Anonymous',
-                roomID: roomID,
-                lastActive: Date.now()
-            };
-
-            myPresenceRef.set(payload).catch((err) => {
-                console.error("Presence sync failed:", err);
-                showConnError(`Can't publish your online status: ${err.message}. Check Firebase database rules.`);
-            });
-            myPresenceRef.onDisconnect().remove();
-        }
-
-        function filterOnlinePlayers() {
-            const searchQuery = (document.getElementById('player-search-input')?.value || '').toLowerCase().trim();
-            const list = document.getElementById('online-players-list');
-            list.innerHTML = '';
-
-            // Guard against a presence entry that's null mid-delete (race condition)
-            const allUserIds = Object.keys(cachedOnlineUsers).filter(id => id !== myUserId && cachedOnlineUsers[id]);
-
-            const matchingIds = allUserIds.filter(id => {
-                const u = cachedOnlineUsers[id];
-                const nameMatch = (u.name || '').toLowerCase().includes(searchQuery);
-                const idMatch = id.toLowerCase().includes(searchQuery);
-                return nameMatch || idMatch;
-            });
-
-            document.getElementById('online-count').innerText = `${allUserIds.length + 1} Online`;
-
-            if (matchingIds.length === 0) {
-                list.innerHTML = `
-                    <div class="text-xs text-slate-500 text-center py-2">
-                        ${searchQuery ? 'No matching players found.' : 'No other players online right now. Use <b>WhatsApp</b> to invite friends!'}
-                    </div>
-                `;
-                return;
-            }
-
-            matchingIds.forEach(id => {
-                const u = cachedOnlineUsers[id];
-                const inSameRoom = u.roomID === roomID;
-
-                const item = document.createElement('div');
-                item.className = "flex items-center justify-between bg-slate-800/60 p-2 rounded-xl text-xs";
-                item.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span class="font-bold text-slate-200">${u.name || 'Player'}</span>
-                        <span class="text-[10px] text-slate-500 code-font">(${id})</span>
-                    </div>
-                    ${inSameRoom 
-                        ? `<span class="text-[10px] text-blue-400 font-bold bg-blue-950/50 px-2 py-0.5 rounded">In Your Room</span>`
-                        : `<button onclick="sendDirectInvite('${id}', '${u.name}')" class="bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
-                            <i class="fa-solid fa-paper-plane"></i> Invite
-                           </button>`
-                    }
-                `;
-                list.appendChild(item);
-            });
-        }
-
-        function sendDirectInvite(targetUserId, targetName) {
-            db.ref(`invites/${targetUserId}`).set({
-                fromName: myUserName || 'A friend',
-                fromUserId: myUserId,
-                roomID: roomID,
-                timestamp: Date.now()
-            }).then(() => {
-                alert(`Invitation sent to ${targetName}!`);
-            }).catch((err) => {
-                console.error("Failed to send invite:", err);
-                alert(`Couldn't send the invite (${err.message}). Check your connection or the Firebase database rules.`);
-            });
-        }
-
-        function showInviteModal(invite) {
-            document.getElementById('invite-modal-text').innerText = `${invite.fromName} invited you to join room "${invite.roomID}"!`;
-            document.getElementById('accept-invite-btn').onclick = function() {
-                db.ref(`invites/${myUserId}`).remove();
-                closeInviteModal();
-                switchRoom(invite.roomID);
-            };
-            document.getElementById('invite-alert-modal').classList.remove('hidden');
-        }
-
-        function closeInviteModal() {
-            db.ref(`invites/${myUserId}`).remove();
-            document.getElementById('invite-alert-modal').classList.add('hidden');
+        function registerDisconnectCleanup() {
+            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().remove();
         }
 
         function pushMyData() {
             myData.name = myUserName;
-            db.ref(`rooms/${roomID}/players/${myUserId}`).set(myData).catch((err) => {
+            myData.lastActive = Date.now();
+            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).set(myData).catch((err) => {
                 console.error("Failed to push player data:", err);
-                showConnError(`Can't save your progress to the room: ${err.message}. Check Firebase database rules.`);
+                showConnError(`Failed to save progress: ${err.message}. Check Firebase rules.`);
             });
         }
 
         function saveLocalMyData() {
-            localStorage.setItem(`jee_data_${roomID}`, JSON.stringify(myData));
+            localStorage.setItem(`jee_data_${currentLobby}`, JSON.stringify(myData));
         }
 
         function loadLocalMyData() {
-            const saved = localStorage.getItem(`jee_data_${roomID}`);
+            const saved = localStorage.getItem(`jee_data_${currentLobby}`);
             if (saved) {
                 try { myData = JSON.parse(saved); } catch (e) {}
             }
@@ -581,6 +454,7 @@
         }
 
         function updateUI() {
+            // Update personal card
             const myStats = calculateXP(myData);
             document.getElementById('my-xp').innerText = `${myStats.xp} XP`;
             document.getElementById('my-tasks-count').innerText = `${myStats.tasks}/${taskDatabase.length}`;
@@ -590,31 +464,58 @@
             document.getElementById('q-physics-count').innerText = myData.questions?.physics || 0;
             document.getElementById('q-chem-count').innerText = myData.questions?.chem || 0;
 
-            const opponentContainer = document.getElementById('opponent-container');
-            const otherUserIds = Object.keys(roomPlayers).filter(id => id !== myUserId);
+            // Render Lobby Active Directory and Leaderboard
+            const activeUserIds = Object.keys(lobbyPlayers);
+            document.getElementById('online-count').innerText = `${activeUserIds.length} Online`;
 
+            const directoryList = document.getElementById('online-players-list');
+            directoryList.innerHTML = '';
+
+            const leaderboardContainer = document.getElementById('lobby-members-container');
+            leaderboardContainer.innerHTML = '';
+
+            const otherUserIds = activeUserIds.filter(id => id !== myUserId);
+
+            // Active Directory
+            activeUserIds.forEach(id => {
+                const player = lobbyPlayers[id];
+                const isMe = id === myUserId;
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-800/60 p-2 rounded-xl text-xs";
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'}"></span>
+                        <span class="font-bold text-slate-200">${player.name || 'Player'} ${isMe ? '(You)' : ''}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 code-font">${calculateXP(player).xp} XP</span>
+                `;
+                directoryList.appendChild(item);
+            });
+
+            // Leaderboard Cards for Other Players
             if (otherUserIds.length > 0) {
-                const opponentId = otherUserIds[0];
-                const oppData = roomPlayers[opponentId];
-                const oppStats = calculateXP(oppData);
-
-                opponentContainer.innerHTML = `
-                    <div class="bg-purple-950/40 border-2 border-purple-500 rounded-xl p-3">
+                otherUserIds.forEach(id => {
+                    const oppData = lobbyPlayers[id];
+                    const oppStats = calculateXP(oppData);
+                    const card = document.createElement('div');
+                    card.className = "bg-purple-950/40 border-2 border-purple-500/50 rounded-xl p-3";
+                    card.innerHTML = `
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs font-bold text-purple-400">${oppData.name || 'FRIEND / OPPONENT'}</span>
+                            <span class="text-xs font-bold text-purple-400">${oppData.name || 'Lobby Competitor'}</span>
                             <span class="text-lg font-black text-white code-font">${oppStats.xp} XP</span>
                         </div>
                         <div class="text-xs text-slate-400 flex justify-between">
                             <span>Tasks: <b class="text-slate-200">${oppStats.tasks}/${taskDatabase.length}</b></span>
                             <span>Qs: <b class="text-emerald-400">${oppStats.qTotal}</b></span>
                         </div>
-                    </div>
-                `;
+                    `;
+                    leaderboardContainer.appendChild(card);
+                });
             } else {
-                opponentContainer.innerHTML = `
+                leaderboardContainer.innerHTML = `
                     <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
                         <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                        Waiting for 2nd player to join room "${roomID}"...
+                        No other players in ${currentLobby.replace('-', ' ')} right now. Share the link with study partners!
                     </div>
                 `;
             }
@@ -752,7 +653,7 @@
                 taskDatabase.push(newTask);
             }
 
-            saveTaskDatabase();
+            localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
             updateUI();
             closeTaskModal();
         }
@@ -768,57 +669,9 @@
                     saveLocalMyData();
                     pushMyData();
                 }
-                saveTaskDatabase();
+                localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
                 updateUI();
                 closeTaskModal();
-            }
-        }
-
-        function createNewRoom() {
-            const randomCode = 'room-' + Math.random().toString(36).substr(2, 5);
-            switchRoom(randomCode);
-        }
-
-        function changeRoom() {
-            const key = prompt("Enter Room Key:", roomID);
-            if (key && key.trim() !== '') {
-                switchRoom(key.trim());
-            }
-        }
-
-        function switchRoom(newRoomId) {
-            db.ref(`rooms/${roomID}`).off();
-            roomID = newRoomId;
-            localStorage.setItem('jee_room_id', roomID);
-            
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomID;
-            window.history.pushState({path: newUrl}, '', newUrl);
-
-            document.getElementById('room-id-display').innerText = roomID;
-            loadLocalMyData();
-            setupFirebaseSync();
-            updateOnlinePresence();
-        }
-
-        function shareWhatsApp() {
-            const shareableUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomID;
-            const message = encodeURIComponent(`⚡ Hey! ${myUserName || 'I'} invited you to a live JEE Sprint Battle!\n\nJoin my room here: ${shareableUrl}`);
-            window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank');
-        }
-
-        function shareRoomLink() {
-            const shareableUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomID;
-            const shareText = `Join my JEE Sprint room! Live progress link: ${shareableUrl}`;
-
-            if (navigator.share) {
-                navigator.share({
-                    title: 'JEE Battle Sprint',
-                    text: shareText,
-                    url: shareableUrl
-                }).catch(() => {});
-            } else {
-                navigator.clipboard.writeText(shareableUrl);
-                alert("Room link copied to clipboard!");
             }
         }
 
@@ -855,4 +708,4 @@
         }
     </script>
 </body>
-    </html>
+</html>
