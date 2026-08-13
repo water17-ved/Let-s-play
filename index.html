@@ -70,7 +70,7 @@
                     <span id="my-xp" class="text-lg font-black text-white code-font">0 XP</span>
                 </div>
                 <div class="text-xs text-slate-400 flex justify-between">
-                    <span>Tasks: <b id="my-tasks-count" class="text-slate-200">0/10</b></span>
+                    <span>Tasks: <b id="my-tasks-count" class="text-slate-200">0/0</b></span>
                     <span>Qs: <b id="my-qs-count" class="text-emerald-400">0</b></span>
                 </div>
             </div>
@@ -117,6 +117,14 @@
             </div>
         </div>
 
+        <!-- Days Selector Header -->
+        <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Schedule & Tasks</h3>
+            <button onclick="openAddTaskModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> Add Block
+            </button>
+        </div>
+
         <!-- Days Selector -->
         <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 gap-1 text-center">
             <button id="tab-today" onclick="switchTab('today')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Today Sprint</button>
@@ -128,6 +136,50 @@
         <div id="tasks-list" class="space-y-2"></div>
 
     </main>
+
+    <!-- Modal: Add / Edit Task -->
+    <div id="task-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-sm space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 id="modal-title" class="text-sm font-bold text-white">Add Schedule Block</h3>
+                <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+
+            <input type="hidden" id="task-edit-id">
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Chapter / Task Name</label>
+                <input type="text" id="task-title-input" placeholder="e.g. Maths: Integration PYQs" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">Time / Duration</label>
+                    <input type="text" id="task-time-input" placeholder="06:00 PM – 08:00 PM" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">XP Reward</label>
+                    <input type="number" id="task-xp-input" value="250" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Assign Day</label>
+                <select id="task-day-select" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+                    <option value="today">Today Sprint</option>
+                    <option value="fri">Friday</option>
+                    <option value="sat">Saturday (Exam Day)</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveTaskModal()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 rounded-xl">Save Block</button>
+                <button id="delete-task-btn" onclick="deleteTaskFromModal()" class="bg-rose-900/50 border border-rose-600 text-rose-300 font-bold text-xs px-3 py-2.5 rounded-xl hidden">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const firebaseConfig = {
@@ -143,24 +195,23 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // TASK DATABASE ADJUSTED FOR SATURDAY 8:00 AM EXAM
-        const taskDatabase = [
-            // Today High-Yield Sprint
+        // DEFAULT TASK DATABASE
+        const defaultTasks = [
             { id: "td_1", day: "today", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Notes & High-Yield Capture", xp: 300 },
             { id: "td_2", day: "today", time: "06:00 PM – 08:30 PM", title: "Maths High-Yield PYQ Sprint (Calculus/Algebra)", xp: 250 },
             { id: "td_3", day: "today", time: "09:00 PM – 11:15 PM", title: "Physics & Organic Chemistry Practice Drills", xp: 250 },
 
-            // Friday Schedule (Coaching 8:00 AM - 5:00 PM)
             { id: "fri_1", day: "fri", time: "06:00 AM – 07:30 AM", title: "Morning Memory Recall: Inorganic / Organic Formulas", xp: 180 },
             { id: "fri_2", day: "fri", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: High-Priority Doubt Resolution", xp: 300 },
             { id: "fri_3", day: "fri", time: "06:00 PM – 08:15 PM", title: "Maths High-Yield Problem Solving Session", xp: 250 },
             { id: "fri_4", day: "fri", time: "09:00 PM – 11:00 PM", title: "Pre-Exam Formula & High-Frequency Error Log Scan", xp: 250 },
 
-            // Saturday Schedule (Test at 8:00 AM)
             { id: "sat_1", day: "sat", time: "06:00 AM – 07:30 AM", title: "Quick Mind Warmup: Formula Sheet & Key Reactions", xp: 200 },
             { id: "sat_2", day: "sat", time: "08:00 AM – 11:00 AM", title: "🎯 JEE MAJOR TEST ATTEMPT (08:00 AM)", xp: 500 },
             { id: "sat_3", day: "sat", time: "11:30 AM – 01:00 PM", title: "Post-Exam Quick Error & Score Analysis", xp: 250 }
         ];
+
+        let taskDatabase = JSON.parse(localStorage.getItem('jee_custom_tasks')) || defaultTasks;
 
         let myUserId = localStorage.getItem('jee_my_user_id');
         if (!myUserId) {
@@ -184,10 +235,14 @@
             startCountdownTimer();
         };
 
-        function setupFirebaseSync() {
-            const roomRef = db.ref(`rooms/${roomID}/players`);
+        function saveTaskDatabase() {
+            localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
+            db.ref(`rooms/${roomID}/sharedTasks`).set(taskDatabase);
+        }
 
-            // Connection Safety Fallback (3-second timeout)
+        function setupFirebaseSync() {
+            const roomRef = db.ref(`rooms/${roomID}`);
+
             const fallbackTimeout = setTimeout(() => {
                 document.getElementById('sync-status').className = "text-xs text-amber-400 font-semibold flex items-center gap-1";
                 document.getElementById('sync-status').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Local Mode`;
@@ -195,8 +250,14 @@
 
             roomRef.on('value', (snapshot) => {
                 clearTimeout(fallbackTimeout);
-                roomPlayers = snapshot.val() || {};
+                const val = snapshot.val() || {};
+                roomPlayers = val.players || {};
                 
+                if (val.sharedTasks) {
+                    taskDatabase = val.sharedTasks;
+                    localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
+                }
+
                 if (roomPlayers[myUserId]) {
                     myData = roomPlayers[myUserId];
                     saveLocalMyData();
@@ -235,7 +296,7 @@
             const completed = data.completedTasks || {};
             taskDatabase.forEach(t => {
                 if (completed[t.id]) {
-                    xp += t.xp;
+                    xp += Number(t.xp || 0);
                     tasks++;
                 }
             });
@@ -323,13 +384,21 @@
             list.innerHTML = '';
             const filtered = taskDatabase.filter(t => t.day === currentTab);
 
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center text-xs text-slate-500">
+                        No blocks added for this day. Click <b>+ Add Block</b> to add one!
+                    </div>
+                `;
+                return;
+            }
+
             filtered.forEach(t => {
                 const isChecked = !!(myData.completedTasks && myData.completedTasks[t.id]);
                 const card = document.createElement('div');
-                card.onclick = () => toggleTask(t.id);
-                card.className = `p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-slate-900/60 border-emerald-500/50' : 'bg-slate-900 border-slate-800'}`;
+                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all ${isChecked ? 'bg-slate-900/60 border-emerald-500/50' : 'bg-slate-900 border-slate-800'}`;
                 card.innerHTML = `
-                    <div class="flex items-center gap-3 pr-2">
+                    <div class="flex items-center gap-3 pr-2 flex-1 cursor-pointer" onclick="toggleTask('${t.id}')">
                         <div class="w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
                             <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
                         </div>
@@ -338,10 +407,100 @@
                             <div class="text-xs font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</div>
                         </div>
                     </div>
-                    <span class="text-xs font-bold text-amber-400 code-font pl-2">+${t.xp}XP</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
+                        <button onclick="openEditTaskModal('${t.id}')" class="text-slate-500 hover:text-slate-300 p-1">
+                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                        </button>
+                    </div>
                 `;
                 list.appendChild(card);
             });
+        }
+
+        // Modal Logic
+        function openAddTaskModal() {
+            document.getElementById('modal-title').innerText = "Add Schedule Block";
+            document.getElementById('task-edit-id').value = "";
+            document.getElementById('task-title-input').value = "";
+            document.getElementById('task-time-input').value = "06:00 PM – 08:00 PM";
+            document.getElementById('task-xp-input').value = "250";
+            document.getElementById('task-day-select').value = currentTab;
+            document.getElementById('delete-task-btn').classList.add('hidden');
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function openEditTaskModal(id) {
+            const task = taskDatabase.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('modal-title').innerText = "Edit Block";
+            document.getElementById('task-edit-id').value = task.id;
+            document.getElementById('task-title-input').value = task.title;
+            document.getElementById('task-time-input').value = task.time;
+            document.getElementById('task-xp-input').value = task.xp;
+            document.getElementById('task-day-select').value = task.day;
+            document.getElementById('delete-task-btn').classList.remove('hidden');
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        function saveTaskModal() {
+            const id = document.getElementById('task-edit-id').value;
+            const title = document.getElementById('task-title-input').value.trim();
+            const time = document.getElementById('task-time-input').value.trim();
+            const xp = parseInt(document.getElementById('task-xp-input').value) || 100;
+            const day = document.getElementById('task-day-select').value;
+
+            if (!title) {
+                alert("Please enter a title for the block.");
+                return;
+            }
+
+            if (id) {
+                // Edit existing
+                const task = taskDatabase.find(t => t.id === id);
+                if (task) {
+                    task.title = title;
+                    task.time = time;
+                    task.xp = xp;
+                    task.day = day;
+                }
+            } else {
+                // Add new
+                const newTask = {
+                    id: 'custom_' + Math.random().toString(36).substr(2, 6),
+                    day: day,
+                    time: time,
+                    title: title,
+                    xp: xp
+                };
+                taskDatabase.push(newTask);
+            }
+
+            saveTaskDatabase();
+            updateUI();
+            closeTaskModal();
+        }
+
+        function deleteTaskFromModal() {
+            const id = document.getElementById('task-edit-id').value;
+            if (!id) return;
+
+            if (confirm("Are you sure you want to delete this block?")) {
+                taskDatabase = taskDatabase.filter(t => t.id !== id);
+                if (myData.completedTasks && myData.completedTasks[id]) {
+                    delete myData.completedTasks[id];
+                    saveLocalMyData();
+                    pushMyData();
+                }
+                saveTaskDatabase();
+                updateUI();
+                closeTaskModal();
+            }
         }
 
         function createNewRoom() {
@@ -357,7 +516,7 @@
         }
 
         function switchRoom(newRoomId) {
-            db.ref(`rooms/${roomID}/players`).off();
+            db.ref(`rooms/${roomID}`).off();
             roomID = newRoomId;
             localStorage.setItem('jee_room_id', roomID);
             
@@ -391,8 +550,7 @@
                 const now = new Date();
                 let testDate = new Date();
                 
-                // Calculate upcoming Saturday 8:00 AM
-                const dayOfWeek = now.getDay(); // 0: Sun, 6: Sat
+                const dayOfWeek = now.getDay();
                 let daysUntilSat = (6 - dayOfWeek + 7) % 7;
                 if (daysUntilSat === 0 && now.getHours() >= 8) {
                     daysUntilSat = 7;
