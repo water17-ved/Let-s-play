@@ -29,10 +29,16 @@
                 <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg text-slate-300 font-bold cursor-pointer hover:border-blue-500">
                     <i class="fa-solid fa-user text-blue-400 mr-1"></i> <span id="my-name-tag">Guest</span>
                 </span>
-                <span id="sync-status" class="text-xs text-amber-400 font-semibold flex items-center gap-1">
+                <span id="sync-status" title="Connecting..." class="text-xs text-amber-400 font-semibold flex items-center gap-1">
                     <i class="fa-solid fa-spinner fa-spin"></i>
                 </span>
             </div>
+        </div>
+
+        <!-- Connection error banner (hidden unless something is actually wrong) -->
+        <div id="conn-error-banner" class="hidden bg-rose-950/60 border border-rose-600 rounded-xl p-2 mb-2 text-[11px] text-rose-300">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+            <span id="conn-error-text">Connection issue.</span>
         </div>
 
         <!-- Saturday Target Countdown Banner -->
@@ -306,10 +312,47 @@
             document.getElementById('room-id-display').innerText = roomID;
             loadLocalMyData();
             renderTasks();
+            monitorConnectionState();
             setupFirebaseSync();
             setupPresenceAndInvites();
             startCountdownTimer();
         };
+
+        // --- NEW: real connection state + clear error surfacing ---
+        // Firebase's ".info/connected" tells us the actual socket state,
+        // and error callbacks on every listener let us show *why* sync
+        // isn't working (almost always: database rules deny read/write)
+        // instead of leaving the header stuck on a spinner forever.
+        function monitorConnectionState() {
+            db.ref('.info/connected').on('value', (snap) => {
+                const statusEl = document.getElementById('sync-status');
+                if (snap.val() === true) {
+                    statusEl.className = "text-xs text-emerald-400 font-semibold flex items-center gap-1";
+                    statusEl.innerHTML = `<i class="fa-solid fa-cloud"></i>`;
+                    statusEl.title = "Connected";
+                    hideConnError();
+                } else {
+                    statusEl.className = "text-xs text-amber-400 font-semibold flex items-center gap-1";
+                    statusEl.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i>`;
+                    statusEl.title = "Connecting...";
+                }
+            });
+        }
+
+        function showConnError(message) {
+            const banner = document.getElementById('conn-error-banner');
+            document.getElementById('conn-error-text').innerText = message;
+            banner.classList.remove('hidden');
+
+            const statusEl = document.getElementById('sync-status');
+            statusEl.className = "text-xs text-rose-400 font-semibold flex items-center gap-1";
+            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+            statusEl.title = message;
+        }
+
+        function hideConnError() {
+            document.getElementById('conn-error-banner').classList.add('hidden');
+        }
 
         function openLoginModal() {
             document.getElementById('login-name-input').value = myUserName;
@@ -340,19 +383,16 @@
 
         function saveTaskDatabase() {
             localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
-            db.ref(`rooms/${roomID}/sharedTasks`).set(taskDatabase);
+            db.ref(`rooms/${roomID}/sharedTasks`).set(taskDatabase).catch((err) => {
+                console.error("Failed to save shared tasks:", err);
+                showConnError("Couldn't save to the shared room (permission denied). Your change is saved locally only.");
+            });
         }
 
         function setupFirebaseSync() {
             const roomRef = db.ref(`rooms/${roomID}`);
 
-            const fallbackTimeout = setTimeout(() => {
-                document.getElementById('sync-status').className = "text-xs text-amber-400 font-semibold flex items-center gap-1";
-                document.getElementById('sync-status').innerHTML = `<i class="fa-solid fa-floppy-disk"></i>`;
-            }, 3000);
-
             roomRef.on('value', (snapshot) => {
-                clearTimeout(fallbackTimeout);
                 const val = snapshot.val() || {};
                 roomPlayers = val.players || {};
                 
@@ -369,10 +409,21 @@
                     pushMyData();
                 }
 
+                registerRoomDisconnectCleanup();
                 updateUI();
-                document.getElementById('sync-status').className = "text-xs text-emerald-400 font-semibold flex items-center gap-1";
-                document.getElementById('sync-status').innerHTML = `<i class="fa-solid fa-cloud"></i>`;
+                hideConnError();
+            }, (error) => {
+                // This fires on permission-denied or any other read failure.
+                // Without this callback the app just sits on a spinner forever.
+                console.error("Room sync error:", error);
+                showConnError(`Can't sync with room "${roomID}": ${error.message}. This usually means the Firebase Realtime Database rules don't allow read/write access — check the rules in the Firebase console.`);
             });
+        }
+
+        // Make sure a player disappears from the room list when they close
+        // the tab / lose connection, instead of staying "in room" forever.
+        function registerRoomDisconnectCleanup() {
+            db.ref(`rooms/${roomID}/players/${myUserId}`).onDisconnect().remove();
         }
 
         function setupPresenceAndInvites() {
@@ -382,6 +433,11 @@
             db.ref('presence').on('value', (snapshot) => {
                 cachedOnlineUsers = snapshot.val() || {};
                 filterOnlinePlayers();
+            }, (error) => {
+                console.error("Presence listener error:", error);
+                document.getElementById('online-players-list').innerHTML =
+                    `<div class="text-xs text-rose-400 text-center py-2">Can't load online players: ${error.message}</div>`;
+                showConnError(`Can't read online players: ${error.message}. Check Firebase database rules.`);
             });
 
             // Listen for direct invites targetting this user ID
@@ -390,6 +446,8 @@
                 if (invite && invite.roomID !== roomID) {
                     showInviteModal(invite);
                 }
+            }, (error) => {
+                console.error("Invite listener error:", error);
             });
         }
 
@@ -404,6 +462,7 @@
 
             myPresenceRef.set(payload).catch((err) => {
                 console.error("Presence sync failed:", err);
+                showConnError(`Can't publish your online status: ${err.message}. Check Firebase database rules.`);
             });
             myPresenceRef.onDisconnect().remove();
         }
@@ -413,7 +472,8 @@
             const list = document.getElementById('online-players-list');
             list.innerHTML = '';
 
-            const allUserIds = Object.keys(cachedOnlineUsers).filter(id => id !== myUserId);
+            // Guard against a presence entry that's null mid-delete (race condition)
+            const allUserIds = Object.keys(cachedOnlineUsers).filter(id => id !== myUserId && cachedOnlineUsers[id]);
 
             const matchingIds = allUserIds.filter(id => {
                 const u = cachedOnlineUsers[id];
@@ -462,8 +522,12 @@
                 fromUserId: myUserId,
                 roomID: roomID,
                 timestamp: Date.now()
+            }).then(() => {
+                alert(`Invitation sent to ${targetName}!`);
+            }).catch((err) => {
+                console.error("Failed to send invite:", err);
+                alert(`Couldn't send the invite (${err.message}). Check your connection or the Firebase database rules.`);
             });
-            alert(`Invitation sent to ${targetName}!`);
         }
 
         function showInviteModal(invite) {
@@ -483,7 +547,10 @@
 
         function pushMyData() {
             myData.name = myUserName;
-            db.ref(`rooms/${roomID}/players/${myUserId}`).set(myData);
+            db.ref(`rooms/${roomID}/players/${myUserId}`).set(myData).catch((err) => {
+                console.error("Failed to push player data:", err);
+                showConnError(`Can't save your progress to the room: ${err.message}. Check Firebase database rules.`);
+            });
         }
 
         function saveLocalMyData() {
@@ -788,4 +855,4 @@
         }
     </script>
 </body>
-</html>
+    </html>
