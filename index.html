@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JEE Revision Sprint</title>
+    <title>JEE Sprint - High Yield Edition</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -23,7 +23,7 @@
     <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50">
         <div class="flex items-center justify-between mb-2">
             <h1 class="text-lg font-bold text-blue-400 flex items-center gap-2">
-                ⚡ JEE Battle Arena
+                ⚡ JEE High-Yield Sprint
             </h1>
             <span id="sync-status" class="text-xs text-amber-400 font-semibold flex items-center gap-1">
                 <i class="fa-solid fa-wifi"></i> Connecting...
@@ -31,16 +31,21 @@
         </div>
 
         <div class="flex items-center justify-between gap-2 bg-slate-800 p-2 rounded-xl text-xs">
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 overflow-hidden">
                 <span class="text-slate-400">Room:</span>
-                <span id="room-id-display" class="font-bold text-amber-400 code-font">jee-battle-1</span>
+                <span id="room-id-display" class="font-bold text-amber-400 code-font truncate max-w-[100px]">...</span>
                 <button onclick="changeRoom()" class="text-slate-400 hover:text-white ml-1">
                     <i class="fa-solid fa-pen"></i>
                 </button>
             </div>
-            <button onclick="shareRoom()" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg font-bold">
-                <i class="fa-brands fa-whatsapp"></i> Share Key
-            </button>
+            <div class="flex gap-1">
+                <button onclick="createNewRoom()" class="bg-slate-700 text-slate-200 px-2 py-1 rounded-lg font-bold">
+                    <i class="fa-solid fa-plus"></i> New
+                </button>
+                <button onclick="shareRoomLink()" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-share-nodes"></i> Share Link
+                </button>
+            </div>
         </div>
     </header>
 
@@ -59,16 +64,16 @@
                     <span id="my-xp" class="text-lg font-black text-white code-font">0 XP</span>
                 </div>
                 <div class="text-xs text-slate-400 flex justify-between">
-                    <span>Tasks: <b id="my-tasks-count" class="text-slate-200">0/13</b></span>
+                    <span>Tasks: <b id="my-tasks-count" class="text-slate-200">0/10</b></span>
                     <span>Qs: <b id="my-qs-count" class="text-emerald-400">0</b></span>
                 </div>
             </div>
 
-            <!-- Second Player Card (Appears automatically when present) -->
+            <!-- Opponent / Friend Card -->
             <div id="opponent-container">
                 <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
                     <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                    Waiting for 2nd player to join room key...
+                    Waiting for 2nd player to open room link...
                 </div>
             </div>
         </div>
@@ -108,9 +113,9 @@
 
         <!-- Days Selector -->
         <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 gap-1">
-            <button id="tab-thu" onclick="switchTab('thu')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Day 1</button>
-            <button id="tab-fri" onclick="switchTab('fri')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Day 2</button>
-            <button id="tab-sat" onclick="switchTab('sat')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Warmup</button>
+            <button id="tab-evening" onclick="switchTab('evening')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Tonight (7 PM+)</button>
+            <button id="tab-full" onclick="switchTab('full')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Coaching Day</button>
+            <button id="tab-weekend" onclick="switchTab('weekend')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Weekend</button>
         </div>
 
         <!-- Task Checklist -->
@@ -119,7 +124,6 @@
     </main>
 
     <script>
-        // FIREBASE CONFIG
         const firebaseConfig = {
           apiKey: "AIzaSyAf7gaZu52OpJXRZoOFV-RBsw-EKdW7lqQ",
           authDomain: "lets-85076.firebaseapp.com",
@@ -133,38 +137,38 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // TASK LIST
+        // HIGH YIELD STATISTICAL TASK DATABASE
         const taskDatabase = [
-            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", title: "Chemistry: Organic / Inorganic Scan", xp: 150 },
-            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", title: "Maths: Differential Calculus Target Qs", xp: 250 },
-            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", title: "Physics: Mechanics & Waves Practice", xp: 250 },
-            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", title: "Physical Chem: Thermo & Kinetics", xp: 150 },
-            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", title: "Physics: Electrostatics & Magnetism", xp: 180 },
-            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", title: "Maths: Algebra & Vectors Practice", xp: 250 },
-            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", title: "Physics: Optics & Modern Physics", xp: 180 },
-            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", title: "Maths: Coordinate Geometry Practice", xp: 250 },
-            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", title: "Physical Chem: 28-Q Target Sheet", xp: 280 },
-            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", title: "Weak Spot Repair & Unsolved Qs", xp: 200 },
-            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", title: "Full Syllabus Formula & Reaction Scan", xp: 200 },
-            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", title: "Test Strategy & Attempt Order", xp: 100 },
-            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", title: "Pre-Exam Light Formula Warmup", xp: 150 }
+            // Tonight Emergency High-Yield Sprint (7 PM Onwards)
+            { id: "e_1", day: "evening", time: "07:00 PM – 08:30 PM", title: "Maths: Calculus / Vectors High-Yield PYQs", xp: 250 },
+            { id: "e_2", day: "evening", time: "09:00 PM – 10:15 PM", title: "Physics: Mechanics & Modern Physics Practice", xp: 220 },
+            { id: "e_3", day: "evening", time: "10:15 PM – 11:15 PM", title: "Chem: Organic Reactions & Thermo Numerical Scan", xp: 200 },
+
+            // Standard Coaching Day (Non-clashing with 8 AM - 5 PM)
+            { id: "f_1", day: "full", time: "06:00 AM – 07:30 AM", title: "Morning Recall: Organic Reactions & NCERT Inorganic", xp: 180 },
+            { id: "f_2", day: "full", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Note-taking & Class Qs", xp: 300 },
+            { id: "f_3", day: "full", time: "06:00 PM – 08:15 PM", title: "Maths: Coordinate & Algebra Priority Drills", xp: 250 },
+            { id: "f_4", day: "full", time: "09:00 PM – 11:15 PM", title: "Physics/Physical Chem: High-Yield Topic PYQs", xp: 250 },
+
+            // Weekend Full Day Strategy
+            { id: "w_1", day: "weekend", time: "07:00 AM – 09:30 AM", title: "Full Syllabus Formula & NCERT Scan", xp: 200 },
+            { id: "w_2", day: "weekend", time: "10:00 AM – 01:00 PM", title: "Timed Major Mock Test / Topic Test", xp: 400 },
+            { id: "w_3", day: "weekend", time: "02:30 PM – 05:30 PM", title: "Mock Test Error Analysis & Weak Area Repair", xp: 300 },
+            { id: "w_4", day: "weekend", time: "07:00 PM – 10:00 PM", title: "High-Yield Backlog & Unsolved Target Sheet", xp: 300 }
         ];
 
-        // Unique Device ID Setup
         let myUserId = localStorage.getItem('jee_my_user_id');
         if (!myUserId) {
             myUserId = 'user_' + Math.random().toString(36).substr(2, 6);
             localStorage.setItem('jee_my_user_id', myUserId);
         }
 
-        let roomID = localStorage.getItem('jee_room_id') || 'jee-battle-1';
-        let currentTab = 'thu';
-        
-        let myData = {
-            completedTasks: {},
-            questions: { maths: 0, physics: 0, chem: 0 }
-        };
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomID = urlParams.get('room') || localStorage.getItem('jee_room_id') || 'jee-battle-1';
+        localStorage.setItem('jee_room_id', roomID);
 
+        let currentTab = 'evening';
+        let myData = { completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 } };
         let roomPlayers = {};
 
         window.onload = function() {
@@ -177,11 +181,9 @@
         function setupFirebaseSync() {
             const roomRef = db.ref(`rooms/${roomID}/players`);
 
-            // Listen for all players in this room
             roomRef.on('value', (snapshot) => {
                 roomPlayers = snapshot.val() || {};
                 
-                // If my remote data exists, sync it
                 if (roomPlayers[myUserId]) {
                     myData = roomPlayers[myUserId];
                     saveLocalMyData();
@@ -230,7 +232,6 @@
         }
 
         function updateUI() {
-            // Update My Card
             const myStats = calculateXP(myData);
             document.getElementById('my-xp').innerText = `${myStats.xp} XP`;
             document.getElementById('my-tasks-count').innerText = `${myStats.tasks}/${taskDatabase.length}`;
@@ -240,7 +241,6 @@
             document.getElementById('q-physics-count').innerText = myData.questions?.physics || 0;
             document.getElementById('q-chem-count').innerText = myData.questions?.chem || 0;
 
-            // Find Second Player if present
             const opponentContainer = document.getElementById('opponent-container');
             const otherUserIds = Object.keys(roomPlayers).filter(id => id !== myUserId);
 
@@ -296,7 +296,7 @@
 
         function switchTab(tab) {
             currentTab = tab;
-            ['thu', 'fri', 'sat'].forEach(t => {
+            ['evening', 'full', 'weekend'].forEach(t => {
                 document.getElementById(`tab-${t}`).className = t === tab 
                     ? "flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white" 
                     : "flex-1 py-2 rounded-lg text-xs font-bold text-slate-400";
@@ -330,21 +330,45 @@
             });
         }
 
+        function createNewRoom() {
+            const randomCode = 'room-' + Math.random().toString(36).substr(2, 5);
+            switchRoom(randomCode);
+        }
+
         function changeRoom() {
             const key = prompt("Enter Room Key:", roomID);
             if (key && key.trim() !== '') {
-                db.ref(`rooms/${roomID}/players`).off();
-                roomID = key.trim();
-                localStorage.setItem('jee_room_id', roomID);
-                document.getElementById('room-id-display').innerText = roomID;
-                loadLocalMyData();
-                setupFirebaseSync();
+                switchRoom(key.trim());
             }
         }
 
-        function shareRoom() {
-            const text = `Join my JEE Revision room! Key: ${roomID}`;
-            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`);
+        function switchRoom(newRoomId) {
+            db.ref(`rooms/${roomID}/players`).off();
+            roomID = newRoomId;
+            localStorage.setItem('jee_room_id', roomID);
+            
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomID;
+            window.history.pushState({path: newUrl}, '', newUrl);
+
+            document.getElementById('room-id-display').innerText = roomID;
+            loadLocalMyData();
+            setupFirebaseSync();
+        }
+
+        function shareRoomLink() {
+            const shareableUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomID;
+            const shareText = `Join my JEE Sprint room! Click link: ${shareableUrl}`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: 'JEE High-Yield Sprint',
+                    text: shareText,
+                    url: shareableUrl
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(shareableUrl);
+                alert("Room link copied to clipboard! Share it on WhatsApp with your friend.");
+            }
         }
     </script>
 </body>
