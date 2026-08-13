@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JEE 2-Day Revision Battle Arena (Live Sync)</title>
+    <title>JEE 2-Day Revision Battle Arena</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,7 +27,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDK (v9 Modular Compat Scripts) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
@@ -66,10 +66,10 @@
                         JEE REVISION BATTLE ARENA
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-2">
-                        <span><i class="fa-regular fa-clock text-blue-400"></i> Thu 5 PM ➔ Sat Morning</span>
+                        <span><i class="fa-regular fa-clock text-blue-400"></i> Revision Sprint</span>
                         <span class="text-slate-600">•</span>
                         <span id="sync-indicator" class="text-emerald-400 font-semibold flex items-center gap-1">
-                            <i class="fa-solid fa-wifi text-[10px]"></i> Cloud Live Sync Active
+                            <i class="fa-solid fa-floppy-disk text-[10px]"></i> Auto-Saved Locally
                         </span>
                     </p>
                 </div>
@@ -104,6 +104,9 @@
                 <button onclick="copyShareStatus()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-purple-500/20 active:scale-95">
                     <i class="fa-brands fa-whatsapp text-sm"></i> Share
                 </button>
+                <button onclick="resetAllData()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 text-red-300 text-xs font-bold px-2.5 py-2 rounded-xl transition" title="Reset All Progress">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -130,7 +133,6 @@
                     <div id="card-p1" class="bg-slate-800/80 border-2 border-blue-500 rounded-xl p-3">
                         <div class="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-between">
                             <span>You (P1)</span>
-                            <i class="fa-solid fa-crown text-amber-400 text-xs hidden" id="crown-p1"></i>
                         </div>
                         <div class="text-2xl font-black text-white code-font" id="p1-xp">0 XP</div>
                         <div class="text-xs text-slate-400 mt-1 flex justify-between">
@@ -145,7 +147,6 @@
                     <div id="card-p2" class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
                         <div class="text-xs text-purple-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-between">
                             <span>Friend (P2)</span>
-                            <i class="fa-solid fa-crown text-amber-400 text-xs hidden" id="crown-p2"></i>
                         </div>
                         <div class="text-2xl font-black text-white code-font" id="p2-xp">0 XP</div>
                         <div class="text-xs text-slate-400 mt-1 flex justify-between">
@@ -198,7 +199,7 @@
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
                             <div class="text-xs font-bold text-blue-400 uppercase">Maths (Diff Calc & Coord)</div>
-                            <div class="text-xs text-slate-400">Target Sets: <span class="text-slate-200 font-semibold">25 + 25 Qs</span></div>
+                            <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">50 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <button onclick="addQuestions('maths', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
@@ -212,7 +213,7 @@
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
                             <div class="text-xs font-bold text-indigo-400 uppercase">Physics (Mechanics & Waves)</div>
-                            <div class="text-xs text-slate-400">Target Sets: <span class="text-slate-200 font-semibold">25 + 28 Qs</span></div>
+                            <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">53 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <button onclick="addQuestions('physics', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
@@ -226,7 +227,7 @@
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
                             <div class="text-xs font-bold text-purple-400 uppercase">Physical Chem Practice</div>
-                            <div class="text-xs text-slate-400">Target Sheet: <span class="text-slate-200 font-semibold">28 Qs</span></div>
+                            <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">28 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <button onclick="addQuestions('chem', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
@@ -293,89 +294,102 @@
 
     </main>
 
-    <!-- App JavaScript Logic with Real-time Firestore Sync -->
     <script>
-        // Firebase Firestore Public Realtime Config
-        const firebaseConfig = {
-            apiKey: "AIzaSyB_DemoKeyForPublicRoomApp12345678",
-            authDomain: "jee-battle-app.firebaseapp.com",
-            projectId: "jee-battle-app",
-            storageBucket: "jee-battle-app.appspot.com",
-            messagingSenderId: "1234567890",
-            appId: "1:1234567890:web:abcdef123456"
-        };
-        
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        let roomID = localStorage.getItem('jee_battle_room_id') || 'jee-battle-room-1';
-
-        // Task Database based on Revision Schedule
+        // Task Database
         const taskDatabase = [
-            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry (Org/Inorg)", title: "Sorted Notes Scan: CB, CC, GOC, HD, APE", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150, tag: "Notes Scan" },
-            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", subject: "Mathematics", title: "Diff. Calculus: AOD, Diff, F&R", desc: "Solve 25 Target Questions (Maxima/Minima, Tangents).", xp: 250, tag: "25 Qs Target" },
-            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", subject: "Physics", title: "Mechanics & Waves: RM, PS, SHM, FM", desc: "Solve 25 Selected Problems (MI, SHM, Wave equations).", xp: 250, tag: "25 Qs Target" },
-            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", subject: "Physical Chemistry", title: "Solution, Ionic, Chemical Kinetics", desc: "Scan formulas + 20-Type conceptual revision.", xp: 150, tag: "Formula Scan" },
-            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", subject: "Physics", title: "Thermodynamics & Electrostatics", desc: "5-Star Notes scan + solved examples.", xp: 180, tag: "5-Star Notes" },
-            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", subject: "Mathematics", title: "Algebra & Vectors: CN, Matrices, Vectors, 3D", desc: "Target practice + 7-step repeat theory.", xp: 250, tag: "Theory + Qs" },
-            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", subject: "Physics", title: "Ray Optics (RO) Blitz", desc: "Lens maker formula, Prism equations + solved numericals.", xp: 180, tag: "Ray Optics" },
-            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", subject: "Mathematics", title: "Coordinate Geometry: SL, Circle, Parabola", desc: "Solve 25 Target Questions across Coordinate geometry.", xp: 250, tag: "25 Qs Target" },
-            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", subject: "Physical Chemistry", title: "Physical Chem Practice Sheet", desc: "Solve 28-Question Target Sheet from past tests.", xp: 280, tag: "28 Qs Sheet" },
-            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", subject: "Physics & Maths", title: "Weak Spot Repair & Unsolved Questions", desc: "Revisit unattempted / incorrect questions.", xp: 200, tag: "Weak Spot Fix" },
-            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", subject: "Full Syllabus", title: "Rapid Formula & Reaction Speed Scan", desc: "High-yield equation sheets & organic reaction scan.", xp: 200, tag: "Formula Blitz" },
-            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", subject: "Test Strategy", title: "Exam Mindset & Attempt Strategy", desc: "Finalize attempt order & negative marking rules.", xp: 100, tag: "Strategy" },
-            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Saturday Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150, tag: "Final Warmup" }
+            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry (Org/Inorg)", title: "Sorted Notes Scan: CB, CC, GOC, HD, APE", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150 },
+            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", subject: "Mathematics", title: "Diff. Calculus: AOD, Diff, F&R", desc: "Solve 25 Target Questions (Maxima/Minima, Tangents).", xp: 250 },
+            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", subject: "Physics", title: "Mechanics & Waves: RM, PS, SHM, FM", desc: "Solve 25 Selected Problems (MI, SHM, Wave equations).", xp: 250 },
+            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", subject: "Physical Chemistry", title: "Solution, Ionic, Chemical Kinetics", desc: "Scan formulas + 20-Type conceptual revision.", xp: 150 },
+            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", subject: "Physics", title: "Thermodynamics & Electrostatics", desc: "5-Star Notes scan + solved examples.", xp: 180 },
+            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", subject: "Mathematics", title: "Algebra & Vectors: CN, Matrices, Vectors, 3D", desc: "Target practice + theory scan.", xp: 250 },
+            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", subject: "Physics", title: "Ray Optics (RO) Blitz", desc: "Lens maker formula, Prism equations + solved numericals.", xp: 180 },
+            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", subject: "Mathematics", title: "Coordinate Geometry: SL, Circle, Parabola", desc: "Solve 25 Target Questions across Coordinate geometry.", xp: 250 },
+            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", subject: "Physical Chemistry", title: "Physical Chem Practice Sheet", desc: "Solve 28-Question Target Sheet from past tests.", xp: 280 },
+            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", subject: "Physics & Maths", title: "Weak Spot Repair & Unsolved Questions", desc: "Revisit unattempted / incorrect questions.", xp: 200 },
+            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", subject: "Full Syllabus", title: "Rapid Formula & Reaction Speed Scan", desc: "High-yield equation sheets & organic reaction scan.", xp: 200 },
+            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", subject: "Test Strategy", title: "Exam Mindset & Attempt Strategy", desc: "Finalize attempt order & negative marking rules.", xp: 100 },
+            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Saturday Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150 }
         ];
 
-        // Global State
-        let appState = {
+        // Default Empty State
+        const defaultState = {
             activePlayer: 'p1',
             activeTab: 'thu',
             players: {
-                p1: { name: "You (P1)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, xp: 0 },
-                p2: { name: "Friend (P2)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, xp: 0 }
+                p1: { name: "You (P1)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 } },
+                p2: { name: "Friend (P2)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 } }
             }
         };
 
+        let roomID = localStorage.getItem('jee_battle_room_id') || 'jee-battle-1';
+        let appState = loadState();
+
         window.onload = function() {
             document.getElementById('room-id-display').innerText = roomID;
-            setupRealtimeSync();
             renderAll();
             startCountdown();
         };
 
-        // Real-time Cloud Firestore Listener
-        function setupRealtimeSync() {
-            db.collection("jee_rooms").doc(roomID)
-                .onSnapshot((doc) => {
-                    if (doc.exists) {
-                        const cloudData = doc.data();
-                        if (cloudData && cloudData.players) {
-                            appState.players = cloudData.players;
-                            renderAll();
-                        }
-                    } else {
-                        pushToCloud();
-                    }
-                }, (error) => {
-                    console.log("Offline mode active");
-                });
+        // Guaranteed Local Storage Save
+        function saveState() {
+            try {
+                localStorage.setItem(`jee_battle_data_${roomID}`, JSON.stringify(appState));
+                const indicator = document.getElementById('sync-indicator');
+                if (indicator) {
+                    indicator.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> Saved ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
+                }
+            } catch (e) {
+                console.error("Could not save to localStorage", e);
+            }
         }
 
-        function pushToCloud() {
-            db.collection("jee_rooms").doc(roomID).set({
-                players: appState.players,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+        // Load State from LocalStorage
+        function loadState() {
+            const saved = localStorage.getItem(`jee_battle_data_${roomID}`);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Ensure robust structure merge
+                    return {
+                        activePlayer: parsed.activePlayer || 'p1',
+                        activeTab: parsed.activeTab || 'thu',
+                        players: {
+                            p1: {
+                                name: "You (P1)",
+                                completedTasks: parsed.players?.p1?.completedTasks || {},
+                                questions: parsed.players?.p1?.questions || { maths: 0, physics: 0, chem: 0 }
+                            },
+                            p2: {
+                                name: "Friend (P2)",
+                                completedTasks: parsed.players?.p2?.completedTasks || {},
+                                questions: parsed.players?.p2?.questions || { maths: 0, physics: 0, chem: 0 }
+                            }
+                        }
+                    };
+                } catch (e) {
+                    console.error("Error parsing saved state", e);
+                }
+            }
+            return JSON.parse(JSON.stringify(defaultState));
         }
 
         function changeRoom() {
-            const newRoom = prompt("Enter a shared Room Key for you and your friend (e.g. 'jee-battle-77'):", roomID);
+            const newRoom = prompt("Enter a Room Key to separate your data (e.g. 'jee-battle-77'):", roomID);
             if (newRoom && newRoom.trim() !== "") {
                 roomID = newRoom.trim();
                 localStorage.setItem('jee_battle_room_id', roomID);
                 document.getElementById('room-id-display').innerText = roomID;
-                setupRealtimeSync();
+                appState = loadState();
+                renderAll();
+            }
+        }
+
+        function resetAllData() {
+            if (confirm("Reset all progress for both players in this room?")) {
+                appState = JSON.parse(JSON.stringify(defaultState));
+                saveState();
+                renderAll();
             }
         }
 
@@ -389,8 +403,9 @@
 
         function switchPlayer(p) {
             appState.activePlayer = p;
-            document.getElementById('btn-p1').className = p === 'p1' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
-            document.getElementById('btn-p2').className = p === 'p2' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
+            document.getElementById('btn-p1').className = p === 'p1' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-md' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
+            document.getElementById('btn-p2').className = p === 'p2' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white shadow-md' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
+            saveState();
             renderAll();
         }
 
@@ -461,8 +476,8 @@
             const curr = appState.players[p].questions[subject] || 0;
             appState.players[p].questions[subject] = Math.max(0, curr + amount);
             
+            saveState();
             renderAll();
-            pushToCloud();
         }
 
         function updateQuestionCounters() {
@@ -480,6 +495,7 @@
                     ? "flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg"
                     : "flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white";
             });
+            saveState();
             renderTasks();
         }
 
@@ -497,11 +513,11 @@
                 if (isChecked) completedCount++;
 
                 const card = document.createElement('div');
-                card.className = `p-4 rounded-xl border ${isChecked ? 'bg-slate-900/60 border-emerald-500/40 opacity-90' : 'bg-slate-900 border-slate-800'}`;
+                card.className = `p-4 rounded-xl border transition-all ${isChecked ? 'bg-slate-900/60 border-emerald-500/40 opacity-90' : 'bg-slate-900 border-slate-800'}`;
                 card.innerHTML = `
                     <div class="flex items-start gap-3">
-                        <button onclick="toggleTask('${task.id}')" class="mt-0.5 w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
-                            <i class="fa-solid fa-check text-xs"></i>
+                        <button onclick="toggleTask('${task.id}')" class="mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600 hover:border-blue-400'}">
+                            <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
                         </button>
                         <div class="flex-1">
                             <div class="flex justify-between items-center mb-1">
@@ -516,7 +532,7 @@
                 container.appendChild(card);
             });
 
-            const pct = Math.round((completedCount / filtered.length) * 100);
+            const pct = filtered.length > 0 ? Math.round((completedCount / filtered.length) * 100) : 0;
             document.getElementById('section-progress-text').innerText = `${pct}%`;
         }
 
@@ -530,15 +546,15 @@
                 appState.players[activeP].completedTasks[taskId] = true;
             }
 
+            saveState();
             renderAll();
-            pushToCloud();
         }
 
         function copyShareStatus() {
             const p1 = calculatePlayerStats('p1');
             const p2 = calculatePlayerStats('p2');
-            const text = `🔥 *JEE BATTLE REVISION STATUS* 🔥\nRoom: ${roomID}\n\n👤 You: ${p1.totalXP} XP (Tasks: ${p1.taskCount}/13, Qs: ${p1.totalQs})\n👤 Friend: ${p2.totalXP} XP (Tasks: ${p2.taskCount}/13, Qs: ${p2.totalQs})\n\nKeep pushing for Saturday morning! 🚀`;
-            navigator.clipboard.writeText(text).then(() => alert("Status copied! Share it on WhatsApp."));
+            const text = `🔥 *JEE BATTLE REVISION STATUS* 🔥\nRoom: ${roomID}\n\n👤 You: ${p1.totalXP} XP (Tasks: ${p1.taskCount}/13, Qs: ${p1.totalQs})\n👤 Friend: ${p2.totalXP} XP (Tasks: ${p2.taskCount}/13, Qs: ${p2.totalQs})\n\nKeep pushing! 🚀`;
+            navigator.clipboard.writeText(text).then(() => alert("Status copied to clipboard! Send it on WhatsApp."));
         }
 
         // Focus Timer
@@ -551,20 +567,29 @@
             isRunning = false;
             timerSeconds = m * 60;
             document.getElementById('timer-display').innerText = `${m}:00`;
+            document.getElementById('timer-toggle-btn').innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
         }
 
         function toggleTimer() {
+            const btn = document.getElementById('timer-toggle-btn');
             if (isRunning) {
                 clearInterval(timerInterval);
                 isRunning = false;
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> Resume Sprint`;
             } else {
                 isRunning = true;
+                btn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Sprint`;
                 timerInterval = setInterval(() => {
                     if (timerSeconds > 0) {
                         timerSeconds--;
                         const m = Math.floor(timerSeconds/60).toString().padStart(2, '0');
                         const s = (timerSeconds%60).toString().padStart(2, '0');
                         document.getElementById('timer-display').innerText = `${m}:${s}`;
+                    } else {
+                        clearInterval(timerInterval);
+                        isRunning = false;
+                        alert("⏱️ Sprint Block Finished! Take a short break.");
+                        btn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
                     }
                 }, 1000);
             }
