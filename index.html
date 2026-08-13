@@ -27,7 +27,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs (Compat version for pure HTML/JS CDN usage) -->
+    <!-- Firebase SDKs (Compat version for browser CDN usage) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
@@ -77,7 +77,6 @@
 
             <!-- Header Controls & Room ID -->
             <div class="flex items-center gap-3 flex-wrap justify-center">
-                <!-- Battle Room ID Badge -->
                 <div class="bg-slate-800 border border-slate-700/60 rounded-xl px-3 py-1 flex items-center gap-2">
                     <span class="text-xs text-slate-400 font-semibold">Room:</span>
                     <span id="room-id-display" class="code-font text-xs font-bold text-amber-400">jee-battle-1</span>
@@ -86,17 +85,15 @@
                     </button>
                 </div>
 
-                <!-- Countdown Timer -->
                 <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1 text-center">
                     <span id="countdown" class="code-font font-bold text-amber-400 text-xs">--h --m --s</span>
                 </div>
 
-                <!-- Active Profile Switcher -->
                 <div class="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
                     <button id="btn-p1" onclick="switchPlayer('p1')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-600 text-white shadow-md">
                         <i class="fa-solid fa-user-ninja"></i> You (P1)
                     </button>
-                    <button id="btn-p2" onclick="switchPlayer('p2')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-white">
+                    <button id="btn-p2" onclick="switchPlayer('p2')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">
                         <i class="fa-solid fa-user-astronaut"></i> Friend (P2)
                     </button>
                 </div>
@@ -128,7 +125,6 @@
                     </span>
                 </div>
 
-                <!-- Leaderboard Cards -->
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div id="card-p1" class="bg-slate-800/80 border-2 border-blue-500 rounded-xl p-3">
                         <div class="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-between">
@@ -164,13 +160,13 @@
                 </div>
             </div>
 
-            <!-- Saturday Boss HP -->
+            <!-- Boss HP Card -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">👹</span>
                         <div>
-                            <h3 class="font-bold text-sm text-slate-100">SATURDAY EXAM BOSS</h3>
+                            <h3 class="font-bold text-sm text-slate-100">EXAM BOSS</h3>
                             <p class="text-xs text-slate-400">Target HP: 1500</p>
                         </div>
                     </div>
@@ -195,10 +191,9 @@
                 </div>
 
                 <div class="space-y-3">
-                    <!-- Maths -->
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-blue-400 uppercase">Maths (Diff Calc & Coord)</div>
+                            <div class="text-xs font-bold text-blue-400 uppercase">Maths</div>
                             <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">50 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
@@ -209,10 +204,9 @@
                         </div>
                     </div>
 
-                    <!-- Physics -->
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-indigo-400 uppercase">Physics (Mechanics & Waves)</div>
+                            <div class="text-xs font-bold text-indigo-400 uppercase">Physics</div>
                             <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">53 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
@@ -223,10 +217,9 @@
                         </div>
                     </div>
 
-                    <!-- Physical Chem -->
                     <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-purple-400 uppercase">Physical Chem Practice</div>
+                            <div class="text-xs font-bold text-purple-400 uppercase">Chemistry</div>
                             <div class="text-xs text-slate-400">Target: <span class="text-slate-200 font-semibold">28 Qs</span></div>
                         </div>
                         <div class="flex items-center gap-1.5">
@@ -265,29 +258,26 @@
         <!-- Right Timeline Column -->
         <div class="lg:col-span-8 space-y-6">
 
-            <!-- Day Selector Tabs -->
             <div class="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex items-center gap-2">
                 <button id="tab-thu" onclick="switchDayTab('thu')" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg">
-                    Thu Evening
+                    Day 1 Sprint
                 </button>
                 <button id="tab-fri" onclick="switchDayTab('fri')" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">
-                    Fri Full Day
+                    Day 2 Full Execution
                 </button>
                 <button id="tab-sat" onclick="switchDayTab('sat')" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">
-                    Sat Warmup
+                    Final Warmup
                 </button>
             </div>
 
-            <!-- Task List Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 id="section-title" class="text-lg font-bold text-white">Thursday Evening Execution Plan</h2>
-                    <p id="section-subtitle" class="text-xs text-slate-400">Organic/Inorganic, Differential Calculus & Core Mechanics</p>
+                    <h2 id="section-title" class="text-lg font-bold text-white">Execution Plan</h2>
+                    <p id="section-subtitle" class="text-xs text-slate-400">Complete tasks to earn XP</p>
                 </div>
                 <span id="section-progress-text" class="text-sm font-bold code-font text-blue-400">0%</span>
             </div>
 
-            <!-- Dynamic Tasks Container -->
             <div id="tasks-container" class="space-y-3"></div>
 
         </div>
@@ -295,16 +285,16 @@
     </main>
 
     <script>
-        // --- YOUR EXACT FIREBASE CONFIG (Initialized Properly via Compat SDK) ---
+        // UPDATED FIREBASE CONFIG WITH DATABASE URL
         const firebaseConfig = {
-          apiKey: "AIzaSyBVTq9-2RSBNFoA7PXiXzn9s5LmwxNuHpo",
-          authDomain: "jee2027-9d55a.firebaseapp.com",
-          databaseURL: "https://jee2027-9d55a-default-rtdb.firebaseio.com",
-          projectId: "jee2027-9d55a",
-          storageBucket: "jee2027-9d55a.firebasestorage.app",
-          messagingSenderId: "450231967529",
-          appId: "1:450231967529:web:bf879e92512e0b2671e138",
-          measurementId: "G-4ZCPJR1HRR"
+          apiKey: "AIzaSyAf7gaZu52OpJXRZoOFV-RBsw-EKdW7lqQ",
+          authDomain: "lets-85076.firebaseapp.com",
+          databaseURL: "https://lets-85076-default-rtdb.firebaseio.com",
+          projectId: "lets-85076",
+          storageBucket: "lets-85076.firebasestorage.app",
+          messagingSenderId: "183210284372",
+          appId: "1:183210284372:web:a1dced56c89689e6b464c1",
+          measurementId: "G-K6DWYFLR9K"
         };
 
         // Initialize App & Database
@@ -313,19 +303,19 @@
 
         // Task Database
         const taskDatabase = [
-            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry (Org/Inorg)", title: "Sorted Notes Scan: CB, CC, GOC, HD, APE", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150 },
-            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", subject: "Mathematics", title: "Diff. Calculus: AOD, Diff, F&R", desc: "Solve 25 Target Questions (Maxima/Minima, Tangents).", xp: 250 },
-            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", subject: "Physics", title: "Mechanics & Waves: RM, PS, SHM, FM", desc: "Solve 25 Selected Problems (MI, SHM, Wave equations).", xp: 250 },
-            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", subject: "Physical Chemistry", title: "Solution, Ionic, Chemical Kinetics", desc: "Scan formulas + 20-Type conceptual revision.", xp: 150 },
-            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", subject: "Physics", title: "Thermodynamics & Electrostatics", desc: "5-Star Notes scan + solved examples.", xp: 180 },
-            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", subject: "Mathematics", title: "Algebra & Vectors: CN, Matrices, Vectors, 3D", desc: "Target practice + theory scan.", xp: 250 },
-            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", subject: "Physics", title: "Ray Optics (RO) Blitz", desc: "Lens maker formula, Prism equations + solved numericals.", xp: 180 },
-            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", subject: "Mathematics", title: "Coordinate Geometry: SL, Circle, Parabola", desc: "Solve 25 Target Questions across Coordinate geometry.", xp: 250 },
-            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", subject: "Physical Chemistry", title: "Physical Chem Practice Sheet", desc: "Solve 28-Question Target Sheet from past tests.", xp: 280 },
-            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", subject: "Physics & Maths", title: "Weak Spot Repair & Unsolved Questions", desc: "Revisit unattempted / incorrect questions.", xp: 200 },
-            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", subject: "Full Syllabus", title: "Rapid Formula & Reaction Speed Scan", desc: "High-yield equation sheets & organic reaction scan.", xp: 200 },
-            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", subject: "Test Strategy", title: "Exam Mindset & Attempt Strategy", desc: "Finalize attempt order & negative marking rules.", xp: 100 },
-            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Saturday Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150 }
+            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry", title: "Sorted Notes Scan: Organic & Inorganic", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150 },
+            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", subject: "Mathematics", title: "Differential Calculus Practice", desc: "Solve Target Questions (Maxima/Minima, Tangents).", xp: 250 },
+            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", subject: "Physics", title: "Mechanics & Waves Blitz", desc: "Solve Selected Problems (MI, SHM, Wave equations).", xp: 250 },
+            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", subject: "Physical Chemistry", title: "Thermodynamics & Kinetics Scan", desc: "Scan formulas + core conceptual questions.", xp: 150 },
+            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", subject: "Physics", title: "Electrostatics & Magnetism", desc: "Notes scan + high-yield solved examples.", xp: 180 },
+            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", subject: "Mathematics", title: "Algebra & Vectors Scan", desc: "Target practice + formula scan.", xp: 250 },
+            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", subject: "Physics", title: "Optics & Modern Physics", desc: "Ray optics, Lens formulas + solved numericals.", xp: 180 },
+            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", subject: "Mathematics", title: "Coordinate Geometry Practice", desc: "Solve Target Questions across Coordinate geometry.", xp: 250 },
+            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", subject: "Physical Chemistry", title: "Physical Chem Practice Sheet", desc: "Solve 28-Question Target Sheet.", xp: 280 },
+            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", subject: "Physics & Maths", title: "Weak Spot Repair", desc: "Revisit unattempted / incorrect questions.", xp: 200 },
+            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", subject: "Full Syllabus", title: "Rapid Formula Scan", desc: "High-yield equation sheets & quick reaction scan.", xp: 200 },
+            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", subject: "Test Strategy", title: "Exam Mindset Strategy", desc: "Finalize attempt order & negative marking rules.", xp: 100 },
+            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150 }
         ];
 
         const defaultState = {
@@ -347,11 +337,10 @@
             setupFirebaseSync();
         };
 
-        // --- REALTIME DATABASE SYNC ---
+        // REALTIME DATABASE SYNC LISTENER
         function setupFirebaseSync() {
             const roomRef = db.ref(`rooms/${roomID}`);
             
-            // Listen for changes from Firebase Realtime Database
             roomRef.on('value', (snapshot) => {
                 const cloudData = snapshot.val();
                 if (cloudData && cloudData.players) {
@@ -360,11 +349,10 @@
                     renderAll();
                     updateSyncIndicator(true);
                 } else {
-                    // Push current state to Cloud if room doesn't exist yet
                     pushToFirebase();
                 }
             }, (error) => {
-                console.warn("Firebase Sync fallback to local:", error);
+                console.warn("Firebase Sync error:", error);
                 updateSyncIndicator(false);
             });
         }
@@ -376,7 +364,7 @@
             }).then(() => {
                 updateSyncIndicator(true);
             }).catch((err) => {
-                console.warn("Could not write to Firebase (check security rules):", err);
+                console.warn("Could not write to Firebase:", err);
                 updateSyncIndicator(false);
             });
         }
@@ -429,7 +417,7 @@
         function changeRoom() {
             const newRoom = prompt("Enter a Room Key for you and your friend (e.g. 'jee-battle-77'):", roomID);
             if (newRoom && newRoom.trim() !== "") {
-                db.ref(`rooms/${roomID}`).off(); // Detach old listener
+                db.ref(`rooms/${roomID}`).off();
                 roomID = newRoom.trim();
                 localStorage.setItem('jee_battle_room_id', roomID);
                 document.getElementById('room-id-display').innerText = roomID;
@@ -645,7 +633,7 @@
                     } else {
                         clearInterval(timerInterval);
                         isRunning = false;
-                        alert("⏱️ Sprint Block Finished! Take a short break.");
+                        alert("⏱️ Sprint Block Finished!");
                         btn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
                     }
                 }, 1000);
