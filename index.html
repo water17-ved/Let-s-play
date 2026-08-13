@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEE 2-Day Revision Battle Arena (Live Sync)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK (v9 Modular Compat Scripts) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col custom-scrollbar bg-slate-950 text-slate-100">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-black text-xl shadow-lg shadow-blue-500/30">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+                        JEE REVISION BATTLE ARENA
+                    </h1>
+                    <p class="text-xs text-slate-400 flex items-center gap-2">
+                        <span><i class="fa-regular fa-clock text-blue-400"></i> Thu 5 PM ➔ Sat Morning</span>
+                        <span class="text-slate-600">•</span>
+                        <span id="sync-indicator" class="text-emerald-400 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-wifi text-[10px]"></i> Cloud Live Sync Active
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Room ID -->
+            <div class="flex items-center gap-3 flex-wrap justify-center">
+                <!-- Battle Room ID Badge -->
+                <div class="bg-slate-800 border border-slate-700/60 rounded-xl px-3 py-1 flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-semibold">Room:</span>
+                    <span id="room-id-display" class="code-font text-xs font-bold text-amber-400">jee-battle-1</span>
+                    <button onclick="changeRoom()" class="text-xs text-slate-400 hover:text-white ml-1" title="Change Room Key">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </div>
+
+                <!-- Countdown Timer -->
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1 text-center">
+                    <span id="countdown" class="code-font font-bold text-amber-400 text-xs">--h --m --s</span>
+                </div>
+
+                <!-- Active Profile Switcher -->
+                <div class="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+                    <button id="btn-p1" onclick="switchPlayer('p1')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-600 text-white shadow-md">
+                        <i class="fa-solid fa-user-ninja"></i> You (P1)
+                    </button>
+                    <button id="btn-p2" onclick="switchPlayer('p2')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-user-astronaut"></i> Friend (P2)
+                    </button>
+                </div>
+
+                <button onclick="copyShareStatus()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-purple-500/20 active:scale-95">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> Share
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Dashboard Column -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- Scoreboard -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Live Leaderboard
+                    </h2>
+                    <span id="active-player-badge" class="text-xs bg-blue-500/20 text-blue-400 px-2.5 py-0.5 rounded-full font-semibold border border-blue-500/30">
+                        You (P1)
+                    </span>
+                </div>
+
+                <!-- Leaderboard Cards -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div id="card-p1" class="bg-slate-800/80 border-2 border-blue-500 rounded-xl p-3">
+                        <div class="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>You (P1)</span>
+                            <i class="fa-solid fa-crown text-amber-400 text-xs hidden" id="crown-p1"></i>
+                        </div>
+                        <div class="text-2xl font-black text-white code-font" id="p1-xp">0 XP</div>
+                        <div class="text-xs text-slate-400 mt-1 flex justify-between">
+                            <span>Tasks: <b id="p1-tasks-completed" class="text-slate-200">0/13</b></span>
+                            <span>Qs: <b id="p1-qs-solved" class="text-emerald-400">0</b></span>
+                        </div>
+                        <div class="w-full bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div id="p1-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div id="card-p2" class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                        <div class="text-xs text-purple-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>Friend (P2)</span>
+                            <i class="fa-solid fa-crown text-amber-400 text-xs hidden" id="crown-p2"></i>
+                        </div>
+                        <div class="text-2xl font-black text-white code-font" id="p2-xp">0 XP</div>
+                        <div class="text-xs text-slate-400 mt-1 flex justify-between">
+                            <span>Tasks: <b id="p2-tasks-completed" class="text-slate-200">0/13</b></span>
+                            <span>Qs: <b id="p2-qs-solved" class="text-emerald-400">0</b></span>
+                        </div>
+                        <div class="w-full bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div id="p2-bar" class="bg-purple-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="battle-status-msg" class="bg-slate-800/60 border border-slate-700/40 rounded-lg p-2.5 text-xs text-slate-300 text-center font-medium">
+                    🔥 Complete tasks and log questions to lead the board!
+                </div>
+            </div>
+
+            <!-- Saturday Boss HP -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">👹</span>
+                        <div>
+                            <h3 class="font-bold text-sm text-slate-100">SATURDAY EXAM BOSS</h3>
+                            <p class="text-xs text-slate-400">Target HP: 1500</p>
+                        </div>
+                    </div>
+                    <span id="boss-hp-text" class="code-font text-xs font-bold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md border border-red-500/30">
+                        1500 / 1500 HP
+                    </span>
+                </div>
+                <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700 mb-2">
+                    <div id="boss-hp-bar" class="bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 h-full rounded-full transition-all duration-500" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Target Questions Logger -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-calculator text-emerald-400"></i> Target Questions Logger
+                    </h3>
+                    <span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        +10 XP / Q
+                    </span>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- Maths -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-blue-400 uppercase">Maths (Diff Calc & Coord)</div>
+                            <div class="text-xs text-slate-400">Target Sets: <span class="text-slate-200 font-semibold">25 + 25 Qs</span></div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="addQuestions('maths', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
+                            <span id="maths-q-count" class="code-font font-bold text-sm w-7 text-center">0</span>
+                            <button onclick="addQuestions('maths', 1)" class="w-7 h-7 bg-blue-600 text-white rounded-lg font-bold text-sm">+</button>
+                            <button onclick="addQuestions('maths', 25)" class="px-2 h-7 bg-blue-600/30 text-blue-300 rounded-lg text-xs font-bold">+25</button>
+                        </div>
+                    </div>
+
+                    <!-- Physics -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-indigo-400 uppercase">Physics (Mechanics & Waves)</div>
+                            <div class="text-xs text-slate-400">Target Sets: <span class="text-slate-200 font-semibold">25 + 28 Qs</span></div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="addQuestions('physics', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
+                            <span id="physics-q-count" class="code-font font-bold text-sm w-7 text-center">0</span>
+                            <button onclick="addQuestions('physics', 1)" class="w-7 h-7 bg-indigo-600 text-white rounded-lg font-bold text-sm">+</button>
+                            <button onclick="addQuestions('physics', 25)" class="px-2 h-7 bg-indigo-600/30 text-indigo-300 rounded-lg text-xs font-bold">+25</button>
+                        </div>
+                    </div>
+
+                    <!-- Physical Chem -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-purple-400 uppercase">Physical Chem Practice</div>
+                            <div class="text-xs text-slate-400">Target Sheet: <span class="text-slate-200 font-semibold">28 Qs</span></div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="addQuestions('chem', -1)" class="w-7 h-7 bg-slate-700 text-white rounded-lg font-bold text-sm">-</button>
+                            <span id="chem-q-count" class="code-font font-bold text-sm w-7 text-center">0</span>
+                            <button onclick="addQuestions('chem', 1)" class="w-7 h-7 bg-purple-600 text-white rounded-lg font-bold text-sm">+</button>
+                            <button onclick="addQuestions('chem', 28)" class="px-2 h-7 bg-purple-600/30 text-purple-300 rounded-lg text-xs font-bold">+28</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Focus Sprint Timer -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-stopwatch text-amber-400"></i> Sprint Focus Timer
+                    </h3>
+                    <span id="timer-label" class="text-xs text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded">45-Min Block</span>
+                </div>
+                <div class="text-center py-2 bg-slate-950 rounded-xl border border-slate-800 mb-3">
+                    <div id="timer-display" class="text-3xl font-black code-font text-white tracking-widest">45:00</div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <button onclick="setTimer(25)" class="bg-slate-800 hover:bg-slate-700 text-xs py-1 rounded-lg">25m</button>
+                    <button onclick="setTimer(45)" class="bg-slate-800 hover:bg-slate-700 text-xs py-1 rounded-lg">45m</button>
+                    <button onclick="setTimer(90)" class="bg-slate-800 hover:bg-slate-700 text-xs py-1 rounded-lg">90m</button>
+                </div>
+                <button id="timer-toggle-btn" onclick="toggleTimer()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i> Start Sprint
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Right Timeline Column -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- Day Selector Tabs -->
+            <div class="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex items-center gap-2">
+                <button id="tab-thu" onclick="switchDayTab('thu')" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg">
+                    Thu Evening
+                </button>
+                <button id="tab-fri" onclick="switchDayTab('fri')" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">
+                    Fri Full Day
+                </button>
+                <button id="tab-sat" onclick="switchDayTab('sat')" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">
+                    Sat Warmup
+                </button>
+            </div>
+
+            <!-- Task List Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 id="section-title" class="text-lg font-bold text-white">Thursday Evening Execution Plan</h2>
+                    <p id="section-subtitle" class="text-xs text-slate-400">Organic/Inorganic, Differential Calculus & Core Mechanics</p>
+                </div>
+                <span id="section-progress-text" class="text-sm font-bold code-font text-blue-400">0%</span>
+            </div>
+
+            <!-- Dynamic Tasks Container -->
+            <div id="tasks-container" class="space-y-3"></div>
+
+        </div>
+
+    </main>
+
+    <!-- App JavaScript Logic with Real-time Firestore Sync -->
+    <script>
+        // Firebase Firestore Public Realtime Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_DemoKeyForPublicRoomApp12345678",
+            authDomain: "jee-battle-app.firebaseapp.com",
+            projectId: "jee-battle-app",
+            storageBucket: "jee-battle-app.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let roomID = localStorage.getItem('jee_battle_room_id') || 'jee-battle-room-1';
+
+        // Task Database based on Revision Schedule
+        const taskDatabase = [
+            { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry (Org/Inorg)", title: "Sorted Notes Scan: CB, CC, GOC, HD, APE", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150, tag: "Notes Scan" },
+            { id: "thu_2", day: "thu", time: "06:30 PM – 08:00 PM", subject: "Mathematics", title: "Diff. Calculus: AOD, Diff, F&R", desc: "Solve 25 Target Questions (Maxima/Minima, Tangents).", xp: 250, tag: "25 Qs Target" },
+            { id: "thu_3", day: "thu", time: "08:30 PM – 10:30 PM", subject: "Physics", title: "Mechanics & Waves: RM, PS, SHM, FM", desc: "Solve 25 Selected Problems (MI, SHM, Wave equations).", xp: 250, tag: "25 Qs Target" },
+            { id: "thu_4", day: "thu", time: "10:30 PM – 11:30 PM", subject: "Physical Chemistry", title: "Solution, Ionic, Chemical Kinetics", desc: "Scan formulas + 20-Type conceptual revision.", xp: 150, tag: "Formula Scan" },
+            { id: "fri_1", day: "fri", time: "06:00 AM – 08:00 AM", subject: "Physics", title: "Thermodynamics & Electrostatics", desc: "5-Star Notes scan + solved examples.", xp: 180, tag: "5-Star Notes" },
+            { id: "fri_2", day: "fri", time: "08:30 AM – 10:30 AM", subject: "Mathematics", title: "Algebra & Vectors: CN, Matrices, Vectors, 3D", desc: "Target practice + 7-step repeat theory.", xp: 250, tag: "Theory + Qs" },
+            { id: "fri_3", day: "fri", time: "10:30 AM – 12:30 PM", subject: "Physics", title: "Ray Optics (RO) Blitz", desc: "Lens maker formula, Prism equations + solved numericals.", xp: 180, tag: "Ray Optics" },
+            { id: "fri_4", day: "fri", time: "01:30 PM – 03:30 PM", subject: "Mathematics", title: "Coordinate Geometry: SL, Circle, Parabola", desc: "Solve 25 Target Questions across Coordinate geometry.", xp: 250, tag: "25 Qs Target" },
+            { id: "fri_5", day: "fri", time: "03:30 PM – 05:00 PM", subject: "Physical Chemistry", title: "Physical Chem Practice Sheet", desc: "Solve 28-Question Target Sheet from past tests.", xp: 280, tag: "28 Qs Sheet" },
+            { id: "fri_6", day: "fri", time: "05:30 PM – 07:30 PM", subject: "Physics & Maths", title: "Weak Spot Repair & Unsolved Questions", desc: "Revisit unattempted / incorrect questions.", xp: 200, tag: "Weak Spot Fix" },
+            { id: "fri_7", day: "fri", time: "08:30 PM – 10:30 PM", subject: "Full Syllabus", title: "Rapid Formula & Reaction Speed Scan", desc: "High-yield equation sheets & organic reaction scan.", xp: 200, tag: "Formula Blitz" },
+            { id: "fri_8", day: "fri", time: "10:30 PM – 11:00 PM", subject: "Test Strategy", title: "Exam Mindset & Attempt Strategy", desc: "Finalize attempt order & negative marking rules.", xp: 100, tag: "Strategy" },
+            { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Saturday Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150, tag: "Final Warmup" }
+        ];
+
+        // Global State
+        let appState = {
+            activePlayer: 'p1',
+            activeTab: 'thu',
+            players: {
+                p1: { name: "You (P1)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, xp: 0 },
+                p2: { name: "Friend (P2)", completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, xp: 0 }
+            }
+        };
+
+        window.onload = function() {
+            document.getElementById('room-id-display').innerText = roomID;
+            setupRealtimeSync();
+            renderAll();
+            startCountdown();
+        };
+
+        // Real-time Cloud Firestore Listener
+        function setupRealtimeSync() {
+            db.collection("jee_rooms").doc(roomID)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const cloudData = doc.data();
+                        if (cloudData && cloudData.players) {
+                            appState.players = cloudData.players;
+                            renderAll();
+                        }
+                    } else {
+                        pushToCloud();
+                    }
+                }, (error) => {
+                    console.log("Offline mode active");
+                });
+        }
+
+        function pushToCloud() {
+            db.collection("jee_rooms").doc(roomID).set({
+                players: appState.players,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        function changeRoom() {
+            const newRoom = prompt("Enter a shared Room Key for you and your friend (e.g. 'jee-battle-77'):", roomID);
+            if (newRoom && newRoom.trim() !== "") {
+                roomID = newRoom.trim();
+                localStorage.setItem('jee_battle_room_id', roomID);
+                document.getElementById('room-id-display').innerText = roomID;
+                setupRealtimeSync();
+            }
+        }
+
+        function renderAll() {
+            updatePlayerHeaderUI();
+            updateLeaderboard();
+            updateBossHP();
+            updateQuestionCounters();
+            renderTasks();
+        }
+
+        function switchPlayer(p) {
+            appState.activePlayer = p;
+            document.getElementById('btn-p1').className = p === 'p1' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
+            document.getElementById('btn-p2').className = p === 'p2' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
+            renderAll();
+        }
+
+        function updatePlayerHeaderUI() {
+            const badge = document.getElementById('active-player-badge');
+            badge.innerText = appState.activePlayer === 'p1' ? "You (P1)" : "Friend (P2)";
+            badge.className = appState.activePlayer === 'p1' 
+                ? "text-xs bg-blue-500/20 text-blue-400 px-2.5 py-0.5 rounded-full font-semibold border border-blue-500/30"
+                : "text-xs bg-purple-500/20 text-purple-400 px-2.5 py-0.5 rounded-full font-semibold border border-purple-500/30";
+        }
+
+        function calculatePlayerStats(pKey) {
+            const player = appState.players[pKey] || { completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 } };
+            let totalXP = 0;
+            let taskCount = 0;
+
+            taskDatabase.forEach(t => {
+                if (player.completedTasks && player.completedTasks[t.id]) {
+                    totalXP += t.xp;
+                    taskCount++;
+                }
+            });
+
+            const q = player.questions || { maths: 0, physics: 0, chem: 0 };
+            const totalQs = (q.maths || 0) + (q.physics || 0) + (q.chem || 0);
+            totalXP += (totalQs * 10);
+
+            return { totalXP, taskCount, totalQs };
+        }
+
+        function updateLeaderboard() {
+            const p1 = calculatePlayerStats('p1');
+            const p2 = calculatePlayerStats('p2');
+
+            document.getElementById('p1-xp').innerText = `${p1.totalXP} XP`;
+            document.getElementById('p1-tasks-completed').innerText = `${p1.taskCount}/${taskDatabase.length}`;
+            document.getElementById('p1-qs-solved').innerText = p1.totalQs;
+            document.getElementById('p1-bar').style.width = `${Math.min(100, Math.round((p1.taskCount/taskDatabase.length)*100))}%`;
+
+            document.getElementById('p2-xp').innerText = `${p2.totalXP} XP`;
+            document.getElementById('p2-tasks-completed').innerText = `${p2.taskCount}/${taskDatabase.length}`;
+            document.getElementById('p2-qs-solved').innerText = p2.totalQs;
+            document.getElementById('p2-bar').style.width = `${Math.min(100, Math.round((p2.taskCount/taskDatabase.length)*100))}%`;
+
+            const statusMsg = document.getElementById('battle-status-msg');
+            if (p1.totalXP > p2.totalXP) {
+                statusMsg.innerHTML = `🔥 <b class="text-blue-400">You (P1)</b> lead by <b class="text-amber-400">${p1.totalXP - p2.totalXP} XP</b>!`;
+            } else if (p2.totalXP > p1.totalXP) {
+                statusMsg.innerHTML = `⚡ <b class="text-purple-400">Friend (P2)</b> leads by <b class="text-amber-400">${p2.totalXP - p1.totalXP} XP</b>!`;
+            } else {
+                statusMsg.innerHTML = `🤝 Both tied at <b class="text-amber-400">${p1.totalXP} XP</b>!`;
+            }
+        }
+
+        function updateBossHP() {
+            const p1 = calculatePlayerStats('p1');
+            const p2 = calculatePlayerStats('p2');
+            const combinedXP = p1.totalXP + p2.totalXP;
+            const currentHP = Math.max(0, 1500 - Math.round(combinedXP * 0.35));
+
+            document.getElementById('boss-hp-text').innerText = `${currentHP} / 1500 HP`;
+            document.getElementById('boss-hp-bar').style.width = `${Math.round((currentHP / 1500) * 100)}%`;
+        }
+
+        function addQuestions(subject, amount) {
+            const p = appState.activePlayer;
+            if (!appState.players[p].questions) appState.players[p].questions = { maths: 0, physics: 0, chem: 0 };
+            const curr = appState.players[p].questions[subject] || 0;
+            appState.players[p].questions[subject] = Math.max(0, curr + amount);
+            
+            renderAll();
+            pushToCloud();
+        }
+
+        function updateQuestionCounters() {
+            const p = appState.activePlayer;
+            const q = appState.players[p].questions || { maths: 0, physics: 0, chem: 0 };
+            document.getElementById('maths-q-count').innerText = q.maths || 0;
+            document.getElementById('physics-q-count').innerText = q.physics || 0;
+            document.getElementById('chem-q-count').innerText = q.chem || 0;
+        }
+
+        function switchDayTab(day) {
+            appState.activeTab = day;
+            ['thu', 'fri', 'sat'].forEach(d => {
+                document.getElementById(`tab-${d}`).className = d === day 
+                    ? "flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg"
+                    : "flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white";
+            });
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            container.innerHTML = '';
+            const activeP = appState.activePlayer;
+            const completed = appState.players[activeP].completedTasks || {};
+            const filtered = taskDatabase.filter(t => t.day === appState.activeTab);
+
+            let completedCount = 0;
+
+            filtered.forEach(task => {
+                const isChecked = !!completed[task.id];
+                if (isChecked) completedCount++;
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border ${isChecked ? 'bg-slate-900/60 border-emerald-500/40 opacity-90' : 'bg-slate-900 border-slate-800'}`;
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <button onclick="toggleTask('${task.id}')" class="mt-0.5 w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </button>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-slate-400 font-bold code-font">${task.time}</span>
+                                <span class="text-xs font-bold text-amber-400">+${task.xp} XP</span>
+                            </div>
+                            <h4 class="font-bold text-sm ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${task.title}</h4>
+                            <p class="text-xs text-slate-400 mt-1">${task.desc}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            const pct = Math.round((completedCount / filtered.length) * 100);
+            document.getElementById('section-progress-text').innerText = `${pct}%`;
+        }
+
+        function toggleTask(taskId) {
+            const activeP = appState.activePlayer;
+            if (!appState.players[activeP].completedTasks) appState.players[activeP].completedTasks = {};
+            
+            if (appState.players[activeP].completedTasks[taskId]) {
+                delete appState.players[activeP].completedTasks[taskId];
+            } else {
+                appState.players[activeP].completedTasks[taskId] = true;
+            }
+
+            renderAll();
+            pushToCloud();
+        }
+
+        function copyShareStatus() {
+            const p1 = calculatePlayerStats('p1');
+            const p2 = calculatePlayerStats('p2');
+            const text = `🔥 *JEE BATTLE REVISION STATUS* 🔥\nRoom: ${roomID}\n\n👤 You: ${p1.totalXP} XP (Tasks: ${p1.taskCount}/13, Qs: ${p1.totalQs})\n👤 Friend: ${p2.totalXP} XP (Tasks: ${p2.taskCount}/13, Qs: ${p2.totalQs})\n\nKeep pushing for Saturday morning! 🚀`;
+            navigator.clipboard.writeText(text).then(() => alert("Status copied! Share it on WhatsApp."));
+        }
+
+        // Focus Timer
+        let timerSeconds = 45 * 60;
+        let isRunning = false;
+        let timerInterval = null;
+
+        function setTimer(m) {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timerSeconds = m * 60;
+            document.getElementById('timer-display').innerText = `${m}:00`;
+        }
+
+        function toggleTimer() {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                isRunning = false;
+            } else {
+                isRunning = true;
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        const m = Math.floor(timerSeconds/60).toString().padStart(2, '0');
+                        const s = (timerSeconds%60).toString().padStart(2, '0');
+                        document.getElementById('timer-display').innerText = `${m}:${s}`;
+                    }
+                }, 1000);
+            }
+        }
+
+        function startCountdown() {
+            setInterval(() => {
+                const now = new Date();
+                let sat = new Date();
+                sat.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
+                sat.setHours(8, 0, 0, 0);
+                const diff = sat - now;
+                if (diff > 0) {
+                    const h = Math.floor(diff/(1000*60*60));
+                    const m = Math.floor((diff%(1000*60*60))/(1000*60));
+                    const s = Math.floor((diff%(1000*60))/1000);
+                    document.getElementById('countdown').innerText = `${h}h ${m}m ${s}s`;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
