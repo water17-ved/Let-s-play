@@ -27,9 +27,9 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDK -->
+    <!-- Firebase SDKs (Compat version for pure HTML/JS CDN usage) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
         body {
@@ -69,7 +69,7 @@
                         <span><i class="fa-regular fa-clock text-blue-400"></i> Revision Sprint</span>
                         <span class="text-slate-600">•</span>
                         <span id="sync-indicator" class="text-emerald-400 font-semibold flex items-center gap-1">
-                            <i class="fa-solid fa-floppy-disk text-[10px]"></i> Auto-Saved Locally
+                            <i class="fa-solid fa-wifi text-[10px]"></i> Connecting to Cloud...
                         </span>
                     </p>
                 </div>
@@ -295,6 +295,22 @@
     </main>
 
     <script>
+        // --- YOUR EXACT FIREBASE CONFIG (Initialized Properly via Compat SDK) ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBVTq9-2RSBNFoA7PXiXzn9s5LmwxNuHpo",
+          authDomain: "jee2027-9d55a.firebaseapp.com",
+          databaseURL: "https://jee2027-9d55a-default-rtdb.firebaseio.com",
+          projectId: "jee2027-9d55a",
+          storageBucket: "jee2027-9d55a.firebasestorage.app",
+          messagingSenderId: "450231967529",
+          appId: "1:450231967529:web:bf879e92512e0b2671e138",
+          measurementId: "G-4ZCPJR1HRR"
+        };
+
+        // Initialize App & Database
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         // Task Database
         const taskDatabase = [
             { id: "thu_1", day: "thu", time: "05:00 PM – 06:30 PM", subject: "Chemistry (Org/Inorg)", title: "Sorted Notes Scan: CB, CC, GOC, HD, APE", desc: "Review mechanisms, reagents, acidic/basic orders.", xp: 150 },
@@ -312,7 +328,6 @@
             { id: "sat_1", day: "sat", time: "06:00 AM – 07:15 AM", subject: "Pre-Exam Warmup", title: "Saturday Light Formula Warm-up", desc: "Scan equations & exceptions. No heavy new problems!", xp: 150 }
         ];
 
-        // Default Empty State
         const defaultState = {
             activePlayer: 'p1',
             activeTab: 'thu',
@@ -323,34 +338,71 @@
         };
 
         let roomID = localStorage.getItem('jee_battle_room_id') || 'jee-battle-1';
-        let appState = loadState();
+        let appState = loadLocalState();
 
         window.onload = function() {
             document.getElementById('room-id-display').innerText = roomID;
             renderAll();
             startCountdown();
+            setupFirebaseSync();
         };
 
-        // Guaranteed Local Storage Save
-        function saveState() {
-            try {
-                localStorage.setItem(`jee_battle_data_${roomID}`, JSON.stringify(appState));
-                const indicator = document.getElementById('sync-indicator');
-                if (indicator) {
-                    indicator.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> Saved ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
+        // --- REALTIME DATABASE SYNC ---
+        function setupFirebaseSync() {
+            const roomRef = db.ref(`rooms/${roomID}`);
+            
+            // Listen for changes from Firebase Realtime Database
+            roomRef.on('value', (snapshot) => {
+                const cloudData = snapshot.val();
+                if (cloudData && cloudData.players) {
+                    appState.players = cloudData.players;
+                    saveLocalState();
+                    renderAll();
+                    updateSyncIndicator(true);
+                } else {
+                    // Push current state to Cloud if room doesn't exist yet
+                    pushToFirebase();
                 }
-            } catch (e) {
-                console.error("Could not save to localStorage", e);
+            }, (error) => {
+                console.warn("Firebase Sync fallback to local:", error);
+                updateSyncIndicator(false);
+            });
+        }
+
+        function pushToFirebase() {
+            db.ref(`rooms/${roomID}`).set({
+                players: appState.players,
+                lastUpdated: Date.now()
+            }).then(() => {
+                updateSyncIndicator(true);
+            }).catch((err) => {
+                console.warn("Could not write to Firebase (check security rules):", err);
+                updateSyncIndicator(false);
+            });
+        }
+
+        function updateSyncIndicator(online) {
+            const ind = document.getElementById('sync-indicator');
+            if (ind) {
+                if (online) {
+                    ind.className = "text-emerald-400 font-semibold flex items-center gap-1";
+                    ind.innerHTML = `<i class="fa-solid fa-cloud text-[10px]"></i> Live Cloud Sync Active`;
+                } else {
+                    ind.className = "text-amber-400 font-semibold flex items-center gap-1";
+                    ind.innerHTML = `<i class="fa-solid fa-floppy-disk text-[10px]"></i> Auto-Saved Locally`;
+                }
             }
         }
 
-        // Load State from LocalStorage
-        function loadState() {
+        function saveLocalState() {
+            localStorage.setItem(`jee_battle_data_${roomID}`, JSON.stringify(appState));
+        }
+
+        function loadLocalState() {
             const saved = localStorage.getItem(`jee_battle_data_${roomID}`);
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
-                    // Ensure robust structure merge
                     return {
                         activePlayer: parsed.activePlayer || 'p1',
                         activeTab: parsed.activeTab || 'thu',
@@ -368,27 +420,30 @@
                         }
                     };
                 } catch (e) {
-                    console.error("Error parsing saved state", e);
+                    console.error("Parse error", e);
                 }
             }
             return JSON.parse(JSON.stringify(defaultState));
         }
 
         function changeRoom() {
-            const newRoom = prompt("Enter a Room Key to separate your data (e.g. 'jee-battle-77'):", roomID);
+            const newRoom = prompt("Enter a Room Key for you and your friend (e.g. 'jee-battle-77'):", roomID);
             if (newRoom && newRoom.trim() !== "") {
+                db.ref(`rooms/${roomID}`).off(); // Detach old listener
                 roomID = newRoom.trim();
                 localStorage.setItem('jee_battle_room_id', roomID);
                 document.getElementById('room-id-display').innerText = roomID;
-                appState = loadState();
+                appState = loadLocalState();
                 renderAll();
+                setupFirebaseSync();
             }
         }
 
         function resetAllData() {
             if (confirm("Reset all progress for both players in this room?")) {
                 appState = JSON.parse(JSON.stringify(defaultState));
-                saveState();
+                saveLocalState();
+                pushToFirebase();
                 renderAll();
             }
         }
@@ -405,7 +460,7 @@
             appState.activePlayer = p;
             document.getElementById('btn-p1').className = p === 'p1' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-md' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
             document.getElementById('btn-p2').className = p === 'p2' ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white shadow-md' : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white';
-            saveState();
+            saveLocalState();
             renderAll();
         }
 
@@ -476,7 +531,8 @@
             const curr = appState.players[p].questions[subject] || 0;
             appState.players[p].questions[subject] = Math.max(0, curr + amount);
             
-            saveState();
+            saveLocalState();
+            pushToFirebase();
             renderAll();
         }
 
@@ -495,7 +551,7 @@
                     ? "flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg"
                     : "flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white";
             });
-            saveState();
+            saveLocalState();
             renderTasks();
         }
 
@@ -546,7 +602,8 @@
                 appState.players[activeP].completedTasks[taskId] = true;
             }
 
-            saveState();
+            saveLocalState();
+            pushToFirebase();
             renderAll();
         }
 
@@ -606,7 +663,7 @@
                     const h = Math.floor(diff/(1000*60*60));
                     const m = Math.floor((diff%(1000*60*60))/(1000*60));
                     const s = Math.floor((diff%(1000*60))/1000);
-                    document.getElementById('countdown').innerText = `${h}h ${m}m ${s}s`;
+                    document.getElementById('countdown').innerText = `${h}h ${m}s`;
                 }
             }, 1000);
         }
