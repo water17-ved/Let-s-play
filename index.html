@@ -35,7 +35,7 @@
             </div>
         </div>
 
-        <!-- Saturday 8 AM Countdown Banner -->
+        <!-- Saturday Target Countdown Banner -->
         <div class="bg-gradient-to-r from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 rounded-xl p-2.5 mb-2 text-center">
             <div class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">🎯 Saturday Exam Target (08:00 AM)</div>
             <div id="exam-timer" class="text-sm font-black text-amber-400 code-font mt-0.5">Calculating...</div>
@@ -65,7 +65,7 @@
 
     <main class="p-4 space-y-4 max-w-lg mx-auto">
 
-        <!-- Online Players Directory & In-App Invitations -->
+        <!-- Online Players Directory & Search -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
             <div class="flex items-center justify-between">
                 <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -74,18 +74,26 @@
                 <span class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold" id="online-count">0 Online</span>
             </div>
 
+            <!-- Player Search Bar -->
+            <div class="relative my-2">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+                <input type="text" id="player-search-input" onkeyup="filterOnlinePlayers()" 
+                       placeholder="Search player name or ID..." 
+                       class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+            </div>
+
             <div id="online-players-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                 <div class="text-xs text-slate-500 text-center py-2">Searching for players...</div>
             </div>
         </div>
 
-        <!-- Current Room Players Progress Cards -->
+        <!-- Room Participants Progress -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-users text-amber-400"></i> Room Participants
             </h2>
 
-            <!-- My Card -->
+            <!-- My Progress Card -->
             <div class="bg-slate-800/80 border-2 border-blue-500 rounded-xl p-3">
                 <div class="flex justify-between items-center mb-1">
                     <span id="my-card-name" class="text-xs font-bold text-blue-400">YOU</span>
@@ -97,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- Opponent / Friend Card -->
+            <!-- Opponent Card -->
             <div id="opponent-container">
                 <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
                     <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
@@ -159,7 +167,7 @@
 
     </main>
 
-    <!-- Modal: Login / Player Name Setup -->
+    <!-- Modal: Login / Set Display Name -->
     <div id="login-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4">
             <div class="text-center">
@@ -179,7 +187,7 @@
         </div>
     </div>
 
-    <!-- Modal: In-App Incoming Invite Alert -->
+    <!-- Modal: Incoming Challenge Alert -->
     <div id="invite-alert-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl p-5 w-full max-w-sm space-y-4 text-center">
             <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto text-xl animate-bounce">
@@ -196,7 +204,7 @@
         </div>
     </div>
 
-    <!-- Modal: Add / Edit Task -->
+    <!-- Modal: Add / Edit Task Block -->
     <div id="task-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-sm space-y-3">
             <div class="flex justify-between items-center">
@@ -254,7 +262,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // DEFAULT TASK DATABASE
         const defaultTasks = [
             { id: "td_1", day: "today", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Notes & High-Yield Capture", xp: 300 },
             { id: "td_2", day: "today", time: "06:00 PM – 08:30 PM", title: "Maths High-Yield PYQ Sprint (Calculus/Algebra)", xp: 250 },
@@ -287,6 +294,7 @@
         let currentTab = 'today';
         let myData = { completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, name: myUserName };
         let roomPlayers = {};
+        let cachedOnlineUsers = {};
 
         window.onload = function() {
             if (!myUserName) {
@@ -370,13 +378,13 @@
         function setupPresenceAndInvites() {
             updateOnlinePresence();
 
-            // Listen to overall online users
+            // Listen to all active player presence nodes
             db.ref('presence').on('value', (snapshot) => {
-                const onlineUsers = snapshot.val() || {};
-                renderOnlinePlayers(onlineUsers);
+                cachedOnlineUsers = snapshot.val() || {};
+                filterOnlinePlayers();
             });
 
-            // Listen for direct personal invitations
+            // Listen for direct invites targetting this user ID
             db.ref(`invites/${myUserId}`).on('value', (snapshot) => {
                 const invite = snapshot.val();
                 if (invite && invite.roomID !== roomID) {
@@ -388,32 +396,45 @@
         function updateOnlinePresence() {
             if (!myUserId) return;
             const myPresenceRef = db.ref(`presence/${myUserId}`);
-            myPresenceRef.set({
+            const payload = {
                 name: myUserName || 'Anonymous',
                 roomID: roomID,
                 lastActive: Date.now()
+            };
+
+            myPresenceRef.set(payload).catch((err) => {
+                console.error("Presence sync failed:", err);
             });
             myPresenceRef.onDisconnect().remove();
         }
 
-        function renderOnlinePlayers(users) {
+        function filterOnlinePlayers() {
+            const searchQuery = (document.getElementById('player-search-input')?.value || '').toLowerCase().trim();
             const list = document.getElementById('online-players-list');
             list.innerHTML = '';
 
-            const userIds = Object.keys(users).filter(id => id !== myUserId);
-            document.getElementById('online-count').innerText = `${userIds.length + 1} Online`;
+            const allUserIds = Object.keys(cachedOnlineUsers).filter(id => id !== myUserId);
 
-            if (userIds.length === 0) {
+            const matchingIds = allUserIds.filter(id => {
+                const u = cachedOnlineUsers[id];
+                const nameMatch = (u.name || '').toLowerCase().includes(searchQuery);
+                const idMatch = id.toLowerCase().includes(searchQuery);
+                return nameMatch || idMatch;
+            });
+
+            document.getElementById('online-count').innerText = `${allUserIds.length + 1} Online`;
+
+            if (matchingIds.length === 0) {
                 list.innerHTML = `
                     <div class="text-xs text-slate-500 text-center py-2">
-                        No other players online right now. Use <b>WhatsApp</b> to invite friends!
+                        ${searchQuery ? 'No matching players found.' : 'No other players online right now. Use <b>WhatsApp</b> to invite friends!'}
                     </div>
                 `;
                 return;
             }
 
-            userIds.forEach(id => {
-                const u = users[id];
+            matchingIds.forEach(id => {
+                const u = cachedOnlineUsers[id];
                 const inSameRoom = u.roomID === roomID;
 
                 const item = document.createElement('div');
@@ -422,7 +443,7 @@
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                         <span class="font-bold text-slate-200">${u.name || 'Player'}</span>
-                        <span class="text-[10px] text-slate-500 code-font">(${u.roomID})</span>
+                        <span class="text-[10px] text-slate-500 code-font">(${id})</span>
                     </div>
                     ${inSameRoom 
                         ? `<span class="text-[10px] text-blue-400 font-bold bg-blue-950/50 px-2 py-0.5 rounded">In Your Room</span>`
@@ -442,7 +463,7 @@
                 roomID: roomID,
                 timestamp: Date.now()
             });
-            alert(`Invitation sent directly to ${targetName}!`);
+            alert(`Invitation sent to ${targetName}!`);
         }
 
         function showInviteModal(invite) {
@@ -604,7 +625,6 @@
             });
         }
 
-        // Modal Logic
         function openAddTaskModal() {
             document.getElementById('modal-title').innerText = "Add Schedule Block";
             document.getElementById('task-edit-id').value = "";
@@ -735,7 +755,6 @@
             }
         }
 
-        // Live Countdown Clock to Saturday 8:00 AM
         function startCountdownTimer() {
             function updateTimer() {
                 const now = new Date();
