@@ -20,8 +20,8 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-10">
 
     <!-- Top Mobile Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50">
-        <div class="flex items-center justify-between mb-2">
+    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 space-y-2">
+        <div class="flex items-center justify-between">
             <h1 class="text-base font-bold text-blue-400 flex items-center gap-1.5">
                 ⚡ JEE Battle Sprint
             </h1>
@@ -36,21 +36,34 @@
         </div>
 
         <!-- Connection Error Banner -->
-        <div id="conn-error-banner" class="hidden bg-rose-950/60 border border-rose-600 rounded-xl p-2 mb-2 text-[11px] text-rose-300">
+        <div id="conn-error-banner" class="hidden bg-rose-950/60 border border-rose-600 rounded-xl p-2 text-[11px] text-rose-300">
             <i class="fa-solid fa-triangle-exclamation mr-1"></i>
             <span id="conn-error-text">Connection issue. Check Firebase rules.</span>
         </div>
 
+        <!-- BOSS BAR COMPONENT -->
+        <div class="bg-slate-950 border border-rose-900/60 rounded-xl p-2.5 shadow-inner">
+            <div class="flex items-center justify-between text-[11px] font-bold mb-1">
+                <span class="text-rose-400 flex items-center gap-1">
+                    <i class="fa-solid fa-skull text-rose-500 animate-pulse"></i> BOSS HEALTH (LOBBY TARGET)
+                </span>
+                <span id="boss-hp-text" class="text-slate-300 code-font">10,000 / 10,000 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700 relative">
+                <div id="boss-hp-fill" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-400 h-full w-full transition-all duration-500 rounded-full"></div>
+            </div>
+        </div>
+
         <!-- Saturday Target Countdown Banner -->
-        <div class="bg-gradient-to-r from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 rounded-xl p-2.5 mb-2 text-center">
+        <div class="bg-gradient-to-r from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 rounded-xl p-2 text-center">
             <div class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">🎯 Saturday Exam Target (08:00 AM)</div>
-            <div id="exam-timer" class="text-sm font-black text-amber-400 code-font mt-0.5">Calculating...</div>
+            <div id="exam-timer" class="text-xs font-black text-amber-400 code-font mt-0.5">Calculating...</div>
         </div>
 
         <!-- Restricted 4-Lobby Selector Bar -->
         <div class="bg-slate-800 p-2 rounded-xl text-xs space-y-1.5">
             <div class="flex items-center justify-between">
-                <span class="text-slate-400 font-semibold">Select Lobby:</span>
+                <span class="text-slate-400 font-semibold">Select Lobby (Max 10):</span>
                 <span id="active-lobby-tag" class="font-bold text-amber-400 code-font uppercase">Lobby Alpha</span>
             </div>
             <div class="grid grid-cols-4 gap-1">
@@ -70,7 +83,7 @@
                 <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fa-solid fa-globe text-emerald-400"></i> Active Lobby Directory
                 </h2>
-                <span class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold" id="online-count">0 Online</span>
+                <span class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold" id="online-count">0/10 Players</span>
             </div>
 
             <div id="online-players-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -165,7 +178,7 @@
                     <i class="fa-solid fa-user-astronaut"></i>
                 </div>
                 <h3 class="text-base font-bold text-white">Join JEE Sprint Lobby</h3>
-                <p class="text-xs text-slate-400">Set your name and choose one of the 4 official lobbies.</p>
+                <p class="text-xs text-slate-400">Set your name and choose one of the 4 official lobbies (Max 10 players/lobby).</p>
             </div>
 
             <div>
@@ -246,6 +259,8 @@
         const db = firebase.database();
 
         const ALLOWED_LOBBIES = ['lobby-alpha', 'lobby-beta', 'lobby-gamma', 'lobby-delta'];
+        const LOBBY_MAX_PLAYERS = 10;
+        const BOSS_MAX_HP = 10000;
 
         const defaultTasks = [
             { id: "td_1", day: "today", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Notes & High-Yield Capture", xp: 300 },
@@ -361,19 +376,31 @@
         function switchLobby(newLobby) {
             if (!ALLOWED_LOBBIES.includes(newLobby)) return;
 
-            // Cleanup disconnect handler on old path
-            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
-            db.ref(`lobbies/${currentLobby}`).off();
+            // Check player capacity for the target lobby
+            db.ref(`lobbies/${newLobby}/players`).once('value', (snap) => {
+                const players = snap.val() || {};
+                const count = Object.keys(players).length;
+                const isAlreadyInLobby = !!players[myUserId];
 
-            currentLobby = newLobby;
-            localStorage.setItem('jee_current_lobby', currentLobby);
+                if (count >= LOBBY_MAX_PLAYERS && !isAlreadyInLobby) {
+                    alert(`Lobby ${newLobby.replace('lobby-', '').toUpperCase()} is currently full (${LOBBY_MAX_PLAYERS}/${LOBBY_MAX_PLAYERS} players). Please select another lobby!`);
+                    return;
+                }
 
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?lobby=' + currentLobby;
-            window.history.pushState({path: newUrl}, '', newUrl);
+                // Cleanup disconnect handler on old path
+                db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
+                db.ref(`lobbies/${currentLobby}`).off();
 
-            updateLobbyUIButtons();
-            loadLocalMyData();
-            setupFirebaseSync();
+                currentLobby = newLobby;
+                localStorage.setItem('jee_current_lobby', currentLobby);
+
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?lobby=' + currentLobby;
+                window.history.pushState({path: newUrl}, '', newUrl);
+
+                updateLobbyUIButtons();
+                loadLocalMyData();
+                setupFirebaseSync();
+            });
         }
 
         function updateLobbyUIButtons() {
@@ -396,6 +423,13 @@
                 const val = snapshot.val() || {};
                 lobbyPlayers = val.players || {};
 
+                // Enforce maximum capacity limit if a late arrival exceeds 10
+                const playerIds = Object.keys(lobbyPlayers);
+                if (playerIds.length > LOBBY_MAX_PLAYERS && !lobbyPlayers[myUserId]) {
+                    alert(`This lobby reached its capacity limit of ${LOBBY_MAX_PLAYERS} players!`);
+                    return;
+                }
+
                 if (lobbyPlayers[myUserId]) {
                     myData = lobbyPlayers[myUserId];
                     myData.name = myUserName;
@@ -409,7 +443,7 @@
                 hideConnError();
             }, (error) => {
                 console.error("Lobby sync error:", error);
-                showConnError(`Sync error: ${error.message}. Ensure Firebase Realtime Database Security Rules are set to public (.read: true, .write: true).`);
+                showConnError(`Sync error: ${error.message}. Ensure Firebase Realtime Database Security Rules are set to public.`);
             });
         }
 
@@ -466,7 +500,7 @@
 
             // Render Lobby Active Directory and Leaderboard
             const activeUserIds = Object.keys(lobbyPlayers);
-            document.getElementById('online-count').innerText = `${activeUserIds.length} Online`;
+            document.getElementById('online-count').innerText = `${activeUserIds.length}/${LOBBY_MAX_PLAYERS} Players`;
 
             const directoryList = document.getElementById('online-players-list');
             directoryList.innerHTML = '';
@@ -474,11 +508,14 @@
             const leaderboardContainer = document.getElementById('lobby-members-container');
             leaderboardContainer.innerHTML = '';
 
-            const otherUserIds = activeUserIds.filter(id => id !== myUserId);
+            let totalLobbyXP = 0;
 
-            // Active Directory
+            // Active Directory & Calculate Lobby Total XP for Boss Bar
             activeUserIds.forEach(id => {
                 const player = lobbyPlayers[id];
+                const playerXP = calculateXP(player).xp;
+                totalLobbyXP += playerXP;
+
                 const isMe = id === myUserId;
                 const item = document.createElement('div');
                 item.className = "flex items-center justify-between bg-slate-800/60 p-2 rounded-xl text-xs";
@@ -487,12 +524,21 @@
                         <span class="w-2 h-2 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'}"></span>
                         <span class="font-bold text-slate-200">${player.name || 'Player'} ${isMe ? '(You)' : ''}</span>
                     </div>
-                    <span class="text-[10px] text-slate-400 code-font">${calculateXP(player).xp} XP</span>
+                    <span class="text-[10px] text-slate-400 code-font">${playerXP} XP</span>
                 `;
                 directoryList.appendChild(item);
             });
 
+            // Update Boss Bar Progress
+            const currentDamage = Math.min(totalLobbyXP, BOSS_MAX_HP);
+            const bossHPLeft = BOSS_MAX_HP - currentDamage;
+            const hpPercent = (bossHPLeft / BOSS_MAX_HP) * 100;
+            
+            document.getElementById('boss-hp-text').innerText = `${bossHPLeft.toLocaleString()} / ${BOSS_MAX_HP.toLocaleString()} HP`;
+            document.getElementById('boss-hp-fill').style.width = `${hpPercent}%`;
+
             // Leaderboard Cards for Other Players
+            const otherUserIds = activeUserIds.filter(id => id !== myUserId);
             if (otherUserIds.length > 0) {
                 otherUserIds.forEach(id => {
                     const oppData = lobbyPlayers[id];
