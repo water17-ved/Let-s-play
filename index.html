@@ -3,248 +3,279 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JEE Exam Sprint</title>
+    <title>JEE Battle Arena</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (v9 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .code-font { font-family: monospace; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-10">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 select-none">
 
     <!-- Top Mobile Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 space-y-2">
+    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-40 space-y-2 shadow-xl">
         <div class="flex items-center justify-between">
-            <h1 class="text-base font-bold text-blue-400 flex items-center gap-1.5">
-                ⚡ JEE Battle Sprint
+            <h1 class="text-base font-black text-blue-400 flex items-center gap-2 tracking-wide">
+                ⚔️ JEE BATTLE ARENA
             </h1>
             <div class="flex items-center gap-2">
-                <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg text-slate-300 font-bold cursor-pointer hover:border-blue-500">
-                    <i class="fa-solid fa-user text-blue-400 mr-1"></i> <span id="my-name-tag">Guest</span>
+                <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-xl text-slate-300 font-bold cursor-pointer hover:border-blue-500 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-user-gear text-blue-400"></i>
+                    <span id="my-name-tag">Guest</span>
                 </span>
-                <span id="sync-status" title="Connecting..." class="text-xs text-amber-400 font-semibold flex items-center gap-1">
+                <span id="sync-status" title="Connecting..." class="text-xs text-amber-400 font-semibold">
                     <i class="fa-solid fa-spinner fa-spin"></i>
                 </span>
             </div>
         </div>
 
         <!-- Connection Error Banner -->
-        <div id="conn-error-banner" class="hidden bg-rose-950/60 border border-rose-600 rounded-xl p-2 text-[11px] text-rose-300">
-            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-            <span id="conn-error-text">Connection issue. Check Firebase rules.</span>
+        <div id="conn-error-banner" class="hidden bg-rose-950/70 border border-rose-600 rounded-xl p-2 text-[11px] text-rose-300 flex items-center justify-between">
+            <span id="conn-error-text"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Connection error.</span>
+            <button onclick="hideConnError()" class="text-rose-400 hover:text-white text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <!-- BOSS BAR COMPONENT -->
-        <div class="bg-slate-950 border border-rose-900/60 rounded-xl p-2.5 shadow-inner">
-            <div class="flex items-center justify-between text-[11px] font-bold mb-1">
-                <span class="text-rose-400 flex items-center gap-1">
-                    <i class="fa-solid fa-skull text-rose-500 animate-pulse"></i> BOSS HEALTH (LOBBY TARGET)
+        <!-- SOLO BOSS HP COMPONENT -->
+        <div class="bg-slate-950 border border-rose-900/60 rounded-xl p-2.5 shadow-inner space-y-1">
+            <div class="flex items-center justify-between text-[11px] font-bold">
+                <span class="text-rose-400 flex items-center gap-1.5">
+                    <i id="boss-icon" class="fa-solid fa-skull text-rose-500 animate-pulse"></i>
+                    <span id="boss-title-tag">SOLO BOSS HEALTH</span>
                 </span>
                 <span id="boss-hp-text" class="text-slate-300 code-font">10,000 / 10,000 HP</span>
             </div>
-            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700 relative">
+            <div class="w-full bg-slate-800 h-3.5 rounded-full overflow-hidden border border-slate-700 relative">
                 <div id="boss-hp-fill" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-400 h-full w-full transition-all duration-500 rounded-full"></div>
             </div>
         </div>
 
-        <!-- Saturday Target Countdown Banner -->
-        <div class="bg-gradient-to-r from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 rounded-xl p-2 text-center">
-            <div class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">🎯 Saturday Exam Target (08:00 AM)</div>
-            <div id="exam-timer" class="text-xs font-black text-amber-400 code-font mt-0.5">Calculating...</div>
-        </div>
-
-        <!-- Restricted 4-Lobby Selector Bar -->
-        <div class="bg-slate-800 p-2 rounded-xl text-xs space-y-1.5">
-            <div class="flex items-center justify-between">
-                <span class="text-slate-400 font-semibold">Select Lobby (Max 10):</span>
-                <span id="active-lobby-tag" class="font-bold text-amber-400 code-font uppercase">Lobby Alpha</span>
+        <!-- Active Lobby Info Bar -->
+        <div class="flex items-center justify-between bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700/60 text-xs">
+            <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-door-open text-amber-400"></i>
+                <span class="text-slate-400">Lobby:</span>
+                <span id="active-lobby-tag" class="font-bold text-amber-400 uppercase code-font">MAIN-ARENA</span>
             </div>
-            <div class="grid grid-cols-4 gap-1">
-                <button onclick="switchLobby('lobby-alpha')" id="btn-lobby-alpha" class="py-1.5 rounded-lg font-bold text-[11px] bg-blue-600 text-white">Alpha</button>
-                <button onclick="switchLobby('lobby-beta')" id="btn-lobby-beta" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Beta</button>
-                <button onclick="switchLobby('lobby-gamma')" id="btn-lobby-gamma" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Gamma</button>
-                <button onclick="switchLobby('lobby-delta')" id="btn-lobby-delta" class="py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300">Delta</button>
-            </div>
+            <button onclick="openLoginModal()" class="text-[11px] text-blue-400 font-bold hover:underline flex items-center gap-1">
+                <i class="fa-solid fa-right-left"></i> Switch Lobby
+            </button>
         </div>
     </header>
 
-    <main class="p-4 space-y-4 max-w-lg mx-auto">
+    <main class="p-4 max-w-lg mx-auto space-y-4">
 
-        <!-- Online Players Directory -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-            <div class="flex items-center justify-between">
-                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-globe text-emerald-400"></i> Active Lobby Directory
+        <!-- TAB 1: LOBBY & BOSS DYNAMICS -->
+        <div id="view-lobby" class="space-y-4">
+            
+            <!-- Question Drill Logger -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                <h3 class="text-xs font-bold text-slate-300 uppercase mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-fire text-amber-400"></i> Solved Question Drills (+10 XP / Q)
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] font-bold text-blue-400 uppercase">Maths</div>
+                        <div id="q-maths-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                        <div class="flex gap-1">
+                            <button onclick="addQ('maths', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                            <button onclick="addQ('maths', 1)" class="flex-1 bg-blue-600 text-xs py-1 rounded font-bold hover:bg-blue-500">+</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] font-bold text-indigo-400 uppercase">Physics</div>
+                        <div id="q-physics-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                        <div class="flex gap-1">
+                            <button onclick="addQ('physics', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                            <button onclick="addQ('physics', 1)" class="flex-1 bg-indigo-600 text-xs py-1 rounded font-bold hover:bg-indigo-500">+</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] font-bold text-purple-400 uppercase">Chem</div>
+                        <div id="q-chem-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                        <div class="flex gap-1">
+                            <button onclick="addQ('chem', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                            <button onclick="addQ('chem', 1)" class="flex-1 bg-purple-600 text-xs py-1 rounded font-bold hover:bg-purple-500">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Custom Plan Tracker -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-blue-400"></i> Active Challenge Track
+                    </h3>
+                    <div class="flex gap-1.5">
+                        <button onclick="publishCurrentPlanAsChallenge()" class="text-[11px] bg-amber-600 hover:bg-amber-500 px-2 py-1 rounded-xl font-bold text-white flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Share
+                        </button>
+                        <button onclick="openCreateChallengeModal()" class="text-[11px] bg-blue-600 hover:bg-blue-500 font-bold px-2 py-1 rounded-xl text-white flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-plus"></i> Custom Plan
+                        </button>
+                    </div>
+                </div>
+
+                <div id="active-challenge-header" class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div id="cur-plan-title" class="text-xs font-bold text-blue-400">Calculus & Physics Focus</div>
+                        <div id="cur-plan-author" class="text-[10px] text-slate-400">Author: You</div>
+                    </div>
+                    <span id="cur-plan-progress-badge" class="text-[10px] bg-blue-950 text-blue-300 border border-blue-600/50 px-2 py-0.5 rounded-full font-bold code-font">
+                        0/0 Done
+                    </span>
+                </div>
+
+                <div id="tasks-list" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: FIND & SHARE CHALLENGES -->
+        <div id="view-challenges" class="hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Lobby Challenge Market
+                    </h2>
+                    <button onclick="openCreateChallengeModal()" class="text-xs bg-blue-600 hover:bg-blue-500 font-bold px-3 py-1.5 rounded-xl text-white">
+                        + Create Plan
+                    </button>
+                </div>
+                <p class="text-[11px] text-slate-400">Browse customized study plans uploaded by players in this lobby. Click <b>Follow Challenge</b> to load a plan into your personal tracker!</p>
+                
+                <div id="challenges-feed" class="space-y-3">
+                    <div class="text-xs text-slate-500 text-center py-4">Loading lobby challenges...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: FIND PLAYERS -->
+        <div id="view-players" class="hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-users text-emerald-400"></i> Active Players Directory
+                    </h2>
+                    <span id="lobby-online-count" class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold">0/10 Players</span>
+                </div>
+
+                <div id="players-list-container" class="space-y-2">
+                    <div class="text-xs text-slate-500 text-center py-4">Locating players in lobby...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: BATTLE COMPARE -->
+        <div id="view-battle" class="hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-swords text-rose-400"></i> Live Lobby Battle Leaderboard
                 </h2>
-                <span class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold" id="online-count">0/10 Players</span>
-            </div>
-
-            <div id="online-players-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                <div class="text-xs text-slate-500 text-center py-2">Loading players...</div>
-            </div>
-        </div>
-
-        <!-- Room Participants Progress -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <i class="fa-solid fa-users text-amber-400"></i> Lobby Leaderboard
-            </h2>
-
-            <!-- My Progress Card -->
-            <div class="bg-slate-800/80 border-2 border-blue-500 rounded-xl p-3">
-                <div class="flex justify-between items-center mb-1">
-                    <span id="my-card-name" class="text-xs font-bold text-blue-400">YOU</span>
-                    <span id="my-xp" class="text-lg font-black text-white code-font">0 XP</span>
-                </div>
-                <div class="text-xs text-slate-400 flex justify-between">
-                    <span>Tasks: <b id="my-tasks-count" class="text-slate-200">0/0</b></span>
-                    <span>Qs: <b id="my-qs-count" class="text-emerald-400">0</b></span>
-                </div>
-            </div>
-
-            <!-- Other Players Container -->
-            <div id="lobby-members-container" class="space-y-2">
-                <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
-                    Waiting for players to join this lobby...
-                </div>
-            </div>
-        </div>
-
-        <!-- Question Logger -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
-            <h3 class="text-xs font-bold text-slate-300 uppercase mb-3 flex items-center gap-2">
-                <i class="fa-solid fa-calculator text-emerald-400"></i> Log Solved Questions (+10 XP)
-            </h3>
-            <div class="grid grid-cols-3 gap-2">
-                <div class="bg-slate-800 p-2.5 rounded-xl text-center">
-                    <div class="text-[10px] font-bold text-blue-400 uppercase">Maths</div>
-                    <div id="q-maths-count" class="text-base font-bold code-font my-1">0</div>
-                    <div class="flex gap-1">
-                        <button onclick="addQ('maths', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold">-</button>
-                        <button onclick="addQ('maths', 1)" class="flex-1 bg-blue-600 text-xs py-1 rounded font-bold">+</button>
+                
+                <!-- My Stats Card -->
+                <div id="battle-my-card" class="bg-slate-800/90 border-2 border-blue-500 rounded-xl p-3 shadow-md">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
+                        <span id="battle-my-xp" class="text-lg font-black text-white code-font">0 XP</span>
+                    </div>
+                    <div class="text-xs text-slate-400 flex justify-between">
+                        <span>Boss Damage: <b id="battle-my-damage" class="text-rose-400">0 HP</b></span>
+                        <span>Questions Solved: <b id="battle-my-qs" class="text-emerald-400">0</b></span>
                     </div>
                 </div>
-                <div class="bg-slate-800 p-2.5 rounded-xl text-center">
-                    <div class="text-[10px] font-bold text-indigo-400 uppercase">Physics</div>
-                    <div id="q-physics-count" class="text-base font-bold code-font my-1">0</div>
-                    <div class="flex gap-1">
-                        <button onclick="addQ('physics', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold">-</button>
-                        <button onclick="addQ('physics', 1)" class="flex-1 bg-indigo-600 text-xs py-1 rounded font-bold">+</button>
-                    </div>
-                </div>
-                <div class="bg-slate-800 p-2.5 rounded-xl text-center">
-                    <div class="text-[10px] font-bold text-purple-400 uppercase">Chem</div>
-                    <div id="q-chem-count" class="text-base font-bold code-font my-1">0</div>
-                    <div class="flex gap-1">
-                        <button onclick="addQ('chem', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold">-</button>
-                        <button onclick="addQ('chem', 1)" class="flex-1 bg-purple-600 text-xs py-1 rounded font-bold">+</button>
-                    </div>
+
+                <!-- Opponents Ranking Cards -->
+                <div id="battle-rivals-container" class="space-y-2">
+                    <div class="text-xs text-slate-500 text-center py-4">No opponents detected in lobby...</div>
                 </div>
             </div>
         </div>
-
-        <!-- Schedule & Tasks Header -->
-        <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Schedule & Tasks</h3>
-            <button onclick="openAddTaskModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                <i class="fa-solid fa-plus"></i> Add Block
-            </button>
-        </div>
-
-        <!-- Days Selector -->
-        <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 gap-1 text-center">
-            <button id="tab-today" onclick="switchTab('today')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Today Sprint</button>
-            <button id="tab-fri" onclick="switchTab('fri')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Friday</button>
-            <button id="tab-sat" onclick="switchTab('sat')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">Saturday (Exam Day)</button>
-        </div>
-
-        <!-- Task Checklist -->
-        <div id="tasks-list" class="space-y-2"></div>
 
     </main>
 
-    <!-- Modal: Mandatory Lobby & Name Selection -->
+    <!-- Bottom Gaming Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-40">
+        <div class="max-w-lg mx-auto grid grid-cols-4 text-center py-2">
+            <button onclick="switchView('lobby')" id="nav-lobby" class="text-blue-400 flex flex-col items-center gap-1 transition">
+                <i class="fa-solid fa-shield-halved text-base"></i>
+                <span class="text-[10px] font-bold">Lobby</span>
+            </button>
+            <button onclick="switchView('challenges')" id="nav-challenges" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+                <i class="fa-solid fa-trophy text-base"></i>
+                <span class="text-[10px] font-bold">Challenges</span>
+            </button>
+            <button onclick="switchView('players')" id="nav-players" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+                <i class="fa-solid fa-users text-base"></i>
+                <span class="text-[10px] font-bold">Players</span>
+            </button>
+            <button onclick="switchView('battle')" id="nav-battle" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+                <i class="fa-solid fa-swords text-base"></i>
+                <span class="text-[10px] font-bold">Compare</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Modal: Profile & Lobby Selection -->
     <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
             <div class="text-center">
                 <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
                     <i class="fa-solid fa-user-astronaut"></i>
                 </div>
-                <h3 class="text-base font-bold text-white">Join JEE Sprint Lobby</h3>
-                <p class="text-xs text-slate-400">Set your name and choose one of the 4 official lobbies (Max 10 players/lobby).</p>
+                <h3 class="text-base font-bold text-white">Player & Lobby Config</h3>
+                <p class="text-xs text-slate-400">Set your player handle and connect to a lobby room (Max 10 players/lobby).</p>
             </div>
 
             <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Player Name</label>
-                <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex, JEE_Master" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+                <label class="text-[10px] font-bold uppercase text-slate-400">Player Handle</label>
+                <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex_JEE" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
             </div>
 
             <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Select Room Lobby</label>
-                <select id="login-lobby-select" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                    <option value="lobby-alpha">Lobby Alpha</option>
-                    <option value="lobby-beta">Lobby Beta</option>
-                    <option value="lobby-gamma">Lobby Gamma</option>
-                    <option value="lobby-delta">Lobby Delta</option>
-                </select>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Lobby Room Name</label>
+                <input type="text" id="login-lobby-input" placeholder="e.g. main-arena, lobby-alpha, squad-1" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
             </div>
 
-            <button onclick="savePlayerName()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl">Enter Lobby</button>
+            <button onclick="saveProfileAndLobby()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg">Connect to Lobby</button>
         </div>
     </div>
 
-    <!-- Modal: Add / Edit Task Block -->
-    <div id="task-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-sm space-y-3">
+    <!-- Modal: Create Custom Challenge Plan -->
+    <div id="create-challenge-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-sm space-y-3 shadow-2xl">
             <div class="flex justify-between items-center">
-                <h3 id="modal-title" class="text-sm font-bold text-white">Add Schedule Block</h3>
-                <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
-            </div>
-
-            <input type="hidden" id="task-edit-id">
-
-            <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Chapter / Task Name</label>
-                <input type="text" id="task-title-input" placeholder="e.g. Maths: Integration PYQs" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-slate-400">Time / Duration</label>
-                    <input type="text" id="task-time-input" placeholder="06:00 PM – 08:00 PM" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-slate-400">XP Reward</label>
-                    <input type="number" id="task-xp-input" value="250" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                </div>
+                <h3 class="text-sm font-bold text-white">Create Custom Challenge Plan</h3>
+                <button onclick="closeCreateChallengeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
 
             <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Assign Day</label>
-                <select id="task-day-select" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                    <option value="today">Today Sprint</option>
-                    <option value="fri">Friday</option>
-                    <option value="sat">Saturday (Exam Day)</option>
-                </select>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Plan Title</label>
+                <input type="text" id="plan-title-input" placeholder="e.g. Organic Chemistry + PYQs Sprint" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
             </div>
 
-            <div class="flex gap-2 pt-2">
-                <button onclick="saveTaskModal()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 rounded-xl">Save Block</button>
-                <button id="delete-task-btn" onclick="deleteTaskFromModal()" class="bg-rose-900/50 border border-rose-600 text-rose-300 font-bold text-xs px-3 py-2.5 rounded-xl hidden">
-                    <i class="fa-solid fa-trash"></i>
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400">Task Blocks & XP Rewards</label>
+                <div id="modal-task-inputs" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+                <button onclick="addModalTaskRow()" class="w-full py-2 bg-slate-800 border border-dashed border-slate-700 rounded-xl text-xs font-bold text-slate-300 hover:border-blue-500">
+                    + Add Task Item
                 </button>
             </div>
+
+            <button onclick="saveNewChallengePlan()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 rounded-xl">Set Active Plan</button>
         </div>
     </div>
 
     <script>
+        // Firebase Config
         const firebaseConfig = {
           apiKey: "AIzaSyAf7gaZu52OpJXRZoOFV-RBsw-EKdW7lqQ",
           authDomain: "lets-85076.firebaseapp.com",
@@ -258,40 +289,38 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const ALLOWED_LOBBIES = ['lobby-alpha', 'lobby-beta', 'lobby-gamma', 'lobby-delta'];
-        const LOBBY_MAX_PLAYERS = 10;
-        const BOSS_MAX_HP = 10000;
-
-        const defaultTasks = [
-            { id: "td_1", day: "today", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: Active Notes & High-Yield Capture", xp: 300 },
-            { id: "td_2", day: "today", time: "06:00 PM – 08:30 PM", title: "Maths High-Yield PYQ Sprint (Calculus/Algebra)", xp: 250 },
-            { id: "td_3", day: "today", time: "09:00 PM – 11:15 PM", title: "Physics & Organic Chemistry Practice Drills", xp: 250 },
-            { id: "fri_1", day: "fri", time: "06:00 AM – 07:30 AM", title: "Morning Memory Recall: Inorganic / Organic Formulas", xp: 180 },
-            { id: "fri_2", day: "fri", time: "08:00 AM – 05:00 PM", title: "Coaching Classes: High-Priority Doubt Resolution", xp: 300 },
-            { id: "fri_3", day: "fri", time: "06:00 PM – 08:15 PM", title: "Maths High-Yield Problem Solving Session", xp: 250 },
-            { id: "fri_4", day: "fri", time: "09:00 PM – 11:00 PM", title: "Pre-Exam Formula & High-Frequency Error Log Scan", xp: 250 },
-            { id: "sat_1", day: "sat", time: "06:00 AM – 07:30 AM", title: "Quick Mind Warmup: Formula Sheet & Key Reactions", xp: 200 },
-            { id: "sat_2", day: "sat", time: "08:00 AM – 11:00 AM", title: "🎯 JEE MAJOR TEST ATTEMPT (08:00 AM)", xp: 500 },
-            { id: "sat_3", day: "sat", time: "11:30 AM – 01:00 PM", title: "Post-Exam Quick Error & Score Analysis", xp: 250 }
-        ];
-
-        let taskDatabase = JSON.parse(localStorage.getItem('jee_custom_tasks')) || defaultTasks;
+        const BOSS_SOLO_HP = 10000;
+        const LOBBY_MAX_CAPACITY = 10;
 
         let myUserId = localStorage.getItem('jee_my_user_id');
         if (!myUserId) {
-            myUserId = 'user_' + Math.random().toString(36).substr(2, 6);
+            myUserId = 'usr_' + Math.random().toString(36).substr(2, 6);
             localStorage.setItem('jee_my_user_id', myUserId);
         }
 
         let myUserName = localStorage.getItem('jee_my_user_name') || '';
+        let currentLobby = localStorage.getItem('jee_current_lobby') || 'main-arena';
 
-        const urlParams = new URLSearchParams(window.location.search);
-        let currentLobby = urlParams.get('lobby') || localStorage.getItem('jee_current_lobby') || 'lobby-alpha';
-        if (!ALLOWED_LOBBIES.includes(currentLobby)) currentLobby = 'lobby-alpha';
+        // Custom User Plan (Default starter template if none saved)
+        let myActivePlan = JSON.parse(localStorage.getItem('jee_active_plan')) || {
+            id: "starter_plan",
+            title: "Calculus & Mechanics Sprint",
+            author: "System",
+            tasks: [
+                { id: "t1", title: "Maths: Definite Integration PYQs", xp: 250 },
+                { id: "t2", title: "Physics: Rotational Dynamics Problem Set", xp: 250 },
+                { id: "t3", title: "Chem: Organic Reaction Mechanisms", xp: 200 }
+            ]
+        };
 
-        let currentTab = 'today';
-        let myData = { completedTasks: {}, questions: { maths: 0, physics: 0, chem: 0 }, name: myUserName };
+        let myData = { 
+            completedTasks: {}, 
+            questions: { maths: 0, physics: 0, chem: 0 }, 
+            name: myUserName 
+        };
+
         let lobbyPlayers = {};
+        let lobbyChallenges = {};
 
         window.onload = function() {
             if (!myUserName) {
@@ -300,39 +329,29 @@
                 updateNameDisplay();
             }
 
-            updateLobbyUIButtons();
             loadLocalMyData();
-            renderTasks();
             monitorConnectionState();
             setupFirebaseSync();
-            startCountdownTimer();
+            renderActivePlan();
         };
 
         function monitorConnectionState() {
             db.ref('.info/connected').on('value', (snap) => {
                 const statusEl = document.getElementById('sync-status');
                 if (snap.val() === true) {
-                    statusEl.className = "text-xs text-emerald-400 font-semibold flex items-center gap-1";
+                    statusEl.className = "text-xs text-emerald-400 font-semibold";
                     statusEl.innerHTML = `<i class="fa-solid fa-cloud"></i>`;
-                    statusEl.title = "Connected";
                     hideConnError();
                 } else {
-                    statusEl.className = "text-xs text-amber-400 font-semibold flex items-center gap-1";
+                    statusEl.className = "text-xs text-amber-400 font-semibold";
                     statusEl.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i>`;
-                    statusEl.title = "Connecting...";
                 }
             });
         }
 
-        function showConnError(message) {
-            const banner = document.getElementById('conn-error-banner');
-            document.getElementById('conn-error-text').innerText = message;
-            banner.classList.remove('hidden');
-
-            const statusEl = document.getElementById('sync-status');
-            statusEl.className = "text-xs text-rose-400 font-semibold flex items-center gap-1";
-            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
-            statusEl.title = message;
+        function showConnError(msg) {
+            document.getElementById('conn-error-text').innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ${msg}`;
+            document.getElementById('conn-error-banner').classList.remove('hidden');
         }
 
         function hideConnError() {
@@ -341,28 +360,46 @@
 
         function openLoginModal() {
             document.getElementById('login-name-input').value = myUserName;
-            document.getElementById('login-lobby-select').value = currentLobby;
+            document.getElementById('login-lobby-input').value = currentLobby;
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
-        function savePlayerName() {
-            const input = document.getElementById('login-name-input').value.trim();
-            const selectedLobby = document.getElementById('login-lobby-select').value;
+        function saveProfileAndLobby() {
+            const nameIn = document.getElementById('login-name-input').value.trim();
+            const lobbyIn = document.getElementById('login-lobby-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'main-arena';
 
-            if (!input) {
-                alert("Please enter a name!");
+            if (!nameIn) {
+                alert("Please enter a player handle!");
                 return;
             }
-            myUserName = input;
+
+            myUserName = nameIn;
             myData.name = myUserName;
             localStorage.setItem('jee_my_user_name', myUserName);
-            updateNameDisplay();
 
-            document.getElementById('login-modal').classList.add('hidden');
-            
-            if (selectedLobby !== currentLobby) {
-                switchLobby(selectedLobby);
+            if (lobbyIn !== currentLobby) {
+                // Capacity check before switching
+                db.ref(`lobbies/${lobbyIn}/players`).once('value', (snap) => {
+                    const players = snap.val() || {};
+                    const count = Object.keys(players).length;
+                    if (count >= LOBBY_MAX_CAPACITY && !players[myUserId]) {
+                        alert(`Lobby "${lobbyIn}" is currently full (${LOBBY_MAX_CAPACITY}/${LOBBY_MAX_CAPACITY} players). Try another lobby name!`);
+                        return;
+                    }
+
+                    db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
+                    db.ref(`lobbies/${currentLobby}`).off();
+                    currentLobby = lobbyIn;
+                    localStorage.setItem('jee_current_lobby', currentLobby);
+                    
+                    updateNameDisplay();
+                    document.getElementById('login-modal').classList.add('hidden');
+                    saveLocalMyData();
+                    setupFirebaseSync();
+                });
             } else {
+                updateNameDisplay();
+                document.getElementById('login-modal').classList.add('hidden');
                 saveLocalMyData();
                 pushMyData();
             }
@@ -370,50 +407,8 @@
 
         function updateNameDisplay() {
             document.getElementById('my-name-tag').innerText = myUserName || 'Guest';
-            document.getElementById('my-card-name').innerText = `YOU (${myUserName || 'Device'})`;
-        }
-
-        function switchLobby(newLobby) {
-            if (!ALLOWED_LOBBIES.includes(newLobby)) return;
-
-            // Check player capacity for the target lobby
-            db.ref(`lobbies/${newLobby}/players`).once('value', (snap) => {
-                const players = snap.val() || {};
-                const count = Object.keys(players).length;
-                const isAlreadyInLobby = !!players[myUserId];
-
-                if (count >= LOBBY_MAX_PLAYERS && !isAlreadyInLobby) {
-                    alert(`Lobby ${newLobby.replace('lobby-', '').toUpperCase()} is currently full (${LOBBY_MAX_PLAYERS}/${LOBBY_MAX_PLAYERS} players). Please select another lobby!`);
-                    return;
-                }
-
-                // Cleanup disconnect handler on old path
-                db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
-                db.ref(`lobbies/${currentLobby}`).off();
-
-                currentLobby = newLobby;
-                localStorage.setItem('jee_current_lobby', currentLobby);
-
-                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?lobby=' + currentLobby;
-                window.history.pushState({path: newUrl}, '', newUrl);
-
-                updateLobbyUIButtons();
-                loadLocalMyData();
-                setupFirebaseSync();
-            });
-        }
-
-        function updateLobbyUIButtons() {
-            document.getElementById('active-lobby-tag').innerText = currentLobby.replace('-', ' ');
-
-            ALLOWED_LOBBIES.forEach(lobby => {
-                const btn = document.getElementById(`btn-${lobby}`);
-                if (lobby === currentLobby) {
-                    btn.className = "py-1.5 rounded-lg font-bold text-[11px] bg-blue-600 text-white shadow";
-                } else {
-                    btn.className = "py-1.5 rounded-lg font-bold text-[11px] bg-slate-700 text-slate-300 hover:bg-slate-600";
-                }
-            });
+            document.getElementById('battle-my-name').innerText = `YOU (${myUserName || 'Device'})`;
+            document.getElementById('active-lobby-tag').innerText = currentLobby;
         }
 
         function setupFirebaseSync() {
@@ -422,17 +417,11 @@
             lobbyRef.on('value', (snapshot) => {
                 const val = snapshot.val() || {};
                 lobbyPlayers = val.players || {};
-
-                // Enforce maximum capacity limit if a late arrival exceeds 10
-                const playerIds = Object.keys(lobbyPlayers);
-                if (playerIds.length > LOBBY_MAX_PLAYERS && !lobbyPlayers[myUserId]) {
-                    alert(`This lobby reached its capacity limit of ${LOBBY_MAX_PLAYERS} players!`);
-                    return;
-                }
+                lobbyChallenges = val.challenges || {};
 
                 if (lobbyPlayers[myUserId]) {
-                    myData = lobbyPlayers[myUserId];
-                    myData.name = myUserName;
+                    myData.completedTasks = lobbyPlayers[myUserId].completedTasks || myData.completedTasks;
+                    myData.questions = lobbyPlayers[myUserId].questions || myData.questions;
                     saveLocalMyData();
                 } else {
                     pushMyData();
@@ -441,9 +430,8 @@
                 registerDisconnectCleanup();
                 updateUI();
                 hideConnError();
-            }, (error) => {
-                console.error("Lobby sync error:", error);
-                showConnError(`Sync error: ${error.message}. Ensure Firebase Realtime Database Security Rules are set to public.`);
+            }, (err) => {
+                showConnError(`Sync error: ${err.message}. Ensure Firebase database rules are public.`);
             });
         }
 
@@ -453,11 +441,9 @@
 
         function pushMyData() {
             myData.name = myUserName;
+            myData.activePlanTitle = myActivePlan.title;
             myData.lastActive = Date.now();
-            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).set(myData).catch((err) => {
-                console.error("Failed to push player data:", err);
-                showConnError(`Failed to save progress: ${err.message}. Check Firebase rules.`);
-            });
+            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).set(myData).catch(err => showConnError(err.message));
         }
 
         function saveLocalMyData() {
@@ -475,7 +461,7 @@
             let xp = 0;
             let tasks = 0;
             const completed = data.completedTasks || {};
-            taskDatabase.forEach(t => {
+            (myActivePlan.tasks || []).forEach(t => {
                 if (completed[t.id]) {
                     xp += Number(t.xp || 0);
                     tasks++;
@@ -488,85 +474,88 @@
         }
 
         function updateUI() {
-            // Update personal card
             const myStats = calculateXP(myData);
-            document.getElementById('my-xp').innerText = `${myStats.xp} XP`;
-            document.getElementById('my-tasks-count').innerText = `${myStats.tasks}/${taskDatabase.length}`;
-            document.getElementById('my-qs-count').innerText = myStats.qTotal;
 
+            // SOLO BOSS HP (PER PERSON)
+            const damageDone = Math.min(myStats.xp, BOSS_SOLO_HP);
+            const bossHPLeft = BOSS_SOLO_HP - damageDone;
+            const hpPercent = (bossHPLeft / BOSS_SOLO_HP) * 100;
+
+            if (bossHPLeft <= 0) {
+                document.getElementById('boss-title-tag').innerText = "SOLO BOSS DEFEATED! 🏆";
+                document.getElementById('boss-icon').className = "fa-solid fa-trophy text-amber-400 animate-bounce";
+                document.getElementById('boss-hp-text').innerText = "0 / 10,000 HP (DEFEATED)";
+            } else {
+                document.getElementById('boss-title-tag').innerText = "SOLO BOSS HEALTH";
+                document.getElementById('boss-icon').className = "fa-solid fa-skull text-rose-500 animate-pulse";
+                document.getElementById('boss-hp-text').innerText = `${bossHPLeft.toLocaleString()} / ${BOSS_SOLO_HP.toLocaleString()} HP`;
+            }
+            
+            document.getElementById('boss-hp-fill').style.width = `${hpPercent}%`;
+
+            // Question Counters
             document.getElementById('q-maths-count').innerText = myData.questions?.maths || 0;
             document.getElementById('q-physics-count').innerText = myData.questions?.physics || 0;
             document.getElementById('q-chem-count').innerText = myData.questions?.chem || 0;
 
-            // Render Lobby Active Directory and Leaderboard
-            const activeUserIds = Object.keys(lobbyPlayers);
-            document.getElementById('online-count').innerText = `${activeUserIds.length}/${LOBBY_MAX_PLAYERS} Players`;
+            // Battle Compare Personal Card
+            document.getElementById('battle-my-xp').innerText = `${myStats.xp} XP`;
+            document.getElementById('battle-my-damage').innerText = `${damageDone} HP`;
+            document.getElementById('battle-my-qs').innerText = myStats.qTotal;
 
-            const directoryList = document.getElementById('online-players-list');
-            directoryList.innerHTML = '';
+            renderActivePlan();
+            renderChallengesFeed();
+            renderPlayersDirectory();
+            renderBattleRivals();
+        }
 
-            const leaderboardContainer = document.getElementById('lobby-members-container');
-            leaderboardContainer.innerHTML = '';
+        function addQ(subject, amount) {
+            if (!myData.questions) myData.questions = { maths: 0, physics: 0, chem: 0 };
+            const curr = myData.questions[subject] || 0;
+            myData.questions[subject] = Math.max(0, curr + amount);
+            saveLocalMyData();
+            pushMyData();
+            updateUI();
+        }
 
-            let totalLobbyXP = 0;
+        function renderActivePlan() {
+            const list = document.getElementById('tasks-list');
+            list.innerHTML = '';
 
-            // Active Directory & Calculate Lobby Total XP for Boss Bar
-            activeUserIds.forEach(id => {
-                const player = lobbyPlayers[id];
-                const playerXP = calculateXP(player).xp;
-                totalLobbyXP += playerXP;
+            const tasks = myActivePlan.tasks || [];
+            let completedCount = 0;
 
-                const isMe = id === myUserId;
-                const item = document.createElement('div');
-                item.className = "flex items-center justify-between bg-slate-800/60 p-2 rounded-xl text-xs";
-                item.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'}"></span>
-                        <span class="font-bold text-slate-200">${player.name || 'Player'} ${isMe ? '(You)' : ''}</span>
-                    </div>
-                    <span class="text-[10px] text-slate-400 code-font">${playerXP} XP</span>
-                `;
-                directoryList.appendChild(item);
-            });
-
-            // Update Boss Bar Progress
-            const currentDamage = Math.min(totalLobbyXP, BOSS_MAX_HP);
-            const bossHPLeft = BOSS_MAX_HP - currentDamage;
-            const hpPercent = (bossHPLeft / BOSS_MAX_HP) * 100;
-            
-            document.getElementById('boss-hp-text').innerText = `${bossHPLeft.toLocaleString()} / ${BOSS_MAX_HP.toLocaleString()} HP`;
-            document.getElementById('boss-hp-fill').style.width = `${hpPercent}%`;
-
-            // Leaderboard Cards for Other Players
-            const otherUserIds = activeUserIds.filter(id => id !== myUserId);
-            if (otherUserIds.length > 0) {
-                otherUserIds.forEach(id => {
-                    const oppData = lobbyPlayers[id];
-                    const oppStats = calculateXP(oppData);
-                    const card = document.createElement('div');
-                    card.className = "bg-purple-950/40 border-2 border-purple-500/50 rounded-xl p-3";
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs font-bold text-purple-400">${oppData.name || 'Lobby Competitor'}</span>
-                            <span class="text-lg font-black text-white code-font">${oppStats.xp} XP</span>
-                        </div>
-                        <div class="text-xs text-slate-400 flex justify-between">
-                            <span>Tasks: <b class="text-slate-200">${oppStats.tasks}/${taskDatabase.length}</b></span>
-                            <span>Qs: <b class="text-emerald-400">${oppStats.qTotal}</b></span>
-                        </div>
-                    `;
-                    leaderboardContainer.appendChild(card);
-                });
-            } else {
-                leaderboardContainer.innerHTML = `
-                    <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 text-center text-xs text-slate-500">
-                        <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                        No other players in ${currentLobby.replace('-', ' ')} right now. Share the link with study partners!
-                    </div>
-                `;
+            if (myActivePlan) {
+                document.getElementById('cur-plan-title').innerText = myActivePlan.title;
+                document.getElementById('cur-plan-author').innerText = `Author: ${myActivePlan.author || 'You'}`;
             }
 
-            renderTasks();
+            if (tasks.length === 0) {
+                list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No active tasks. Create a plan or accept a lobby challenge!</div>`;
+                document.getElementById('cur-plan-progress-badge').innerText = `0/0 Done`;
+                return;
+            }
+
+            tasks.forEach(t => {
+                const isChecked = !!(myData.completedTasks && myData.completedTasks[t.id]);
+                if (isChecked) completedCount++;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${isChecked ? 'bg-slate-900/60 border-emerald-500/50' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`;
+                card.onclick = () => toggleTask(t.id);
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
+                            <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
+                        </div>
+                        <span class="text-xs font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</span>
+                    </div>
+                    <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
+                `;
+                list.appendChild(card);
+            });
+
+            document.getElementById('cur-plan-progress-badge').innerText = `${completedCount}/${tasks.length} Done`;
         }
 
         function toggleTask(taskId) {
@@ -581,177 +570,225 @@
             updateUI();
         }
 
-        function addQ(subject, amount) {
-            if (!myData.questions) myData.questions = { maths: 0, physics: 0, chem: 0 };
-            const curr = myData.questions[subject] || 0;
-            myData.questions[subject] = Math.max(0, curr + amount);
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
-        }
+        function renderChallengesFeed() {
+            const feed = document.getElementById('challenges-feed');
+            feed.innerHTML = '';
 
-        function switchTab(tab) {
-            currentTab = tab;
-            ['today', 'fri', 'sat'].forEach(t => {
-                document.getElementById(`tab-${t}`).className = t === tab 
-                    ? "flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white" 
-                    : "flex-1 py-2 rounded-lg text-xs font-bold text-slate-400";
-            });
-            renderTasks();
-        }
-
-        function renderTasks() {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
-            const filtered = taskDatabase.filter(t => t.day === currentTab);
-
-            if (filtered.length === 0) {
-                list.innerHTML = `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center text-xs text-slate-500">
-                        No blocks added for this day. Click <b>+ Add Block</b> to add one!
-                    </div>
-                `;
+            const keys = Object.keys(lobbyChallenges);
+            if (keys.length === 0) {
+                feed.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No challenges published in this lobby yet. Create and share the first one!</div>`;
                 return;
             }
 
-            filtered.forEach(t => {
-                const isChecked = !!(myData.completedTasks && myData.completedTasks[t.id]);
+            keys.forEach(k => {
+                const challenge = lobbyChallenges[k];
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all ${isChecked ? 'bg-slate-900/60 border-emerald-500/50' : 'bg-slate-900 border-slate-800'}`;
+                card.className = "bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-2";
+                
+                let taskSummary = (challenge.tasks || []).map(t => `<li class="text-[11px] text-slate-300 flex justify-between"><span>• ${t.title}</span><b class="text-amber-400 code-font">+${t.xp}XP</b></li>`).join('');
+
                 card.innerHTML = `
-                    <div class="flex items-center gap-3 pr-2 flex-1 cursor-pointer" onclick="toggleTask('${t.id}')">
-                        <div class="w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
-                            <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
-                        </div>
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div class="text-[10px] text-slate-400 code-font">${t.time}</div>
-                            <div class="text-xs font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</div>
+                            <h4 class="text-xs font-bold text-blue-400">${challenge.title}</h4>
+                            <div class="text-[10px] text-slate-400">Published by: ${challenge.author || 'Anonymous'}</div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
-                        <button onclick="openEditTaskModal('${t.id}')" class="text-slate-500 hover:text-slate-300 p-1">
-                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                        <button onclick="acceptChallenge('${k}')" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg shadow">
+                            Follow Challenge
                         </button>
                     </div>
+                    <ul class="space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80">${taskSummary}</ul>
                 `;
-                list.appendChild(card);
+                feed.appendChild(card);
             });
         }
 
-        function openAddTaskModal() {
-            document.getElementById('modal-title').innerText = "Add Schedule Block";
-            document.getElementById('task-edit-id').value = "";
-            document.getElementById('task-title-input').value = "";
-            document.getElementById('task-time-input').value = "06:00 PM – 08:00 PM";
-            document.getElementById('task-xp-input').value = "250";
-            document.getElementById('task-day-select').value = currentTab;
-            document.getElementById('delete-task-btn').classList.add('hidden');
-            document.getElementById('task-modal').classList.remove('hidden');
+        function acceptChallenge(challengeKey) {
+            const challenge = lobbyChallenges[challengeKey];
+            if (!challenge) return;
+
+            myActivePlan = challenge;
+            myData.completedTasks = {};
+            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
+            saveLocalMyData();
+            pushMyData();
+            switchView('lobby');
+            updateUI();
         }
 
-        function openEditTaskModal(id) {
-            const task = taskDatabase.find(t => t.id === id);
-            if (!task) return;
-
-            document.getElementById('modal-title').innerText = "Edit Block";
-            document.getElementById('task-edit-id').value = task.id;
-            document.getElementById('task-title-input').value = task.title;
-            document.getElementById('task-time-input').value = task.time;
-            document.getElementById('task-xp-input').value = task.xp;
-            document.getElementById('task-day-select').value = task.day;
-            document.getElementById('delete-task-btn').classList.remove('hidden');
-            document.getElementById('task-modal').classList.remove('hidden');
+        function publishCurrentPlanAsChallenge() {
+            if (!myActivePlan || !myActivePlan.tasks || myActivePlan.tasks.length === 0) {
+                alert("Create a plan with at least one task before sharing!");
+                return;
+            }
+            myActivePlan.author = myUserName;
+            db.ref(`lobbies/${currentLobby}/challenges`).push(myActivePlan).then(() => {
+                alert(`"${myActivePlan.title}" has been published to the lobby challenge market!`);
+                switchView('challenges');
+            }).catch(err => showConnError(err.message));
         }
 
-        function closeTaskModal() {
-            document.getElementById('task-modal').classList.add('hidden');
-        }
+        function renderPlayersDirectory() {
+            const container = document.getElementById('players-list-container');
+            container.innerHTML = '';
 
-        function saveTaskModal() {
-            const id = document.getElementById('task-edit-id').value;
-            const title = document.getElementById('task-title-input').value.trim();
-            const time = document.getElementById('task-time-input').value.trim();
-            const xp = parseInt(document.getElementById('task-xp-input').value) || 100;
-            const day = document.getElementById('task-day-select').value;
+            const playerIds = Object.keys(lobbyPlayers);
+            document.getElementById('lobby-online-count').innerText = `${playerIds.length}/${LOBBY_MAX_CAPACITY} Players`;
 
-            if (!title) {
-                alert("Please enter a title for the block.");
+            if (playerIds.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No active players online in this lobby.</div>`;
                 return;
             }
 
-            if (id) {
-                const task = taskDatabase.find(t => t.id === id);
-                if (task) {
-                    task.title = title;
-                    task.time = time;
-                    task.xp = xp;
-                    task.day = day;
-                }
-            } else {
-                const newTask = {
-                    id: 'custom_' + Math.random().toString(36).substr(2, 6),
-                    day: day,
-                    time: time,
-                    title: title,
-                    xp: xp
-                };
-                taskDatabase.push(newTask);
+            playerIds.forEach(id => {
+                const p = lobbyPlayers[id];
+                const pStats = calculateXP(p);
+                const isMe = id === myUserId;
+
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-800/60 border border-slate-700/50 p-2.5 rounded-xl text-xs";
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="w-2.5 h-2.5 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'} animate-pulse shrink-0"></span>
+                        <div class="truncate">
+                            <span class="font-bold text-slate-200">${p.name || 'Player'} ${isMe ? '(You)' : ''}</span>
+                            <div class="text-[10px] text-slate-400 truncate">Plan: ${p.activePlanTitle || 'Custom Sprint'}</div>
+                        </div>
+                    </div>
+                    <span class="text-xs text-amber-400 font-bold code-font shrink-0 ml-2">${pStats.xp} XP</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function renderBattleRivals() {
+            const container = document.getElementById('battle-rivals-container');
+            container.innerHTML = '';
+
+            const playerIds = Object.keys(lobbyPlayers);
+            
+            // Sort players by total XP descending
+            const sortedPlayers = playerIds.map(id => ({
+                id,
+                data: lobbyPlayers[id],
+                stats: calculateXP(lobbyPlayers[id])
+            })).sort((a, b) => b.stats.xp - a.stats.xp);
+
+            const rivals = sortedPlayers.filter(p => p.id !== myUserId);
+
+            if (rivals.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-4 text-center text-xs text-slate-500">
+                        <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
+                        No opponents in lobby "${currentLobby}" to compare yet. Invite study partners to join!
+                    </div>
+                `;
+                return;
             }
 
-            localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
+            rivals.forEach((r, index) => {
+                const opp = r.data;
+                const oppStats = r.stats;
+                const oppDamage = Math.min(oppStats.xp, BOSS_SOLO_HP);
+
+                const card = document.createElement('div');
+                card.className = "bg-purple-950/30 border border-purple-500/40 rounded-xl p-3 space-y-1.5 shadow";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-amber-400 code-font">#${index + 1}</span>
+                            <span class="text-xs font-bold text-purple-300">${opp.name || 'Competitor'}</span>
+                        </div>
+                        <span class="text-base font-black text-white code-font">${oppStats.xp} XP</span>
+                    </div>
+                    <div class="text-xs text-slate-400 flex justify-between">
+                        <span>Boss Damage: <b class="text-rose-400">${oppDamage} HP</b></span>
+                        <span>Questions Solved: <b class="text-emerald-400">${oppStats.qTotal}</b></span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function switchView(view) {
+            ['lobby', 'challenges', 'players', 'battle'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                const btn = document.getElementById(`nav-${v}`);
+                btn.className = "text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition";
+            });
+
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+            document.getElementById(`nav-${view}`).className = "text-blue-400 flex flex-col items-center gap-1 transition font-bold";
+        }
+
+        function openCreateChallengeModal() {
+            document.getElementById('plan-title-input').value = "";
+            document.getElementById('modal-task-inputs').innerHTML = "";
+            addModalTaskRow();
+            addModalTaskRow();
+            document.getElementById('create-challenge-modal').classList.remove('hidden');
+        }
+
+        function closeCreateChallengeModal() {
+            document.getElementById('create-challenge-modal').classList.add('hidden');
+        }
+
+        function addModalTaskRow() {
+            const container = document.getElementById('modal-task-inputs');
+            const row = document.createElement('div');
+            row.className = "flex gap-2 items-center";
+            row.innerHTML = `
+                <input type="text" placeholder="Task name..." class="task-row-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                <input type="number" placeholder="XP" value="200" class="task-row-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+            `;
+            container.appendChild(row);
+        }
+
+        function saveNewChallengePlan() {
+            const title = document.getElementById('plan-title-input').value.trim();
+            if (!title) {
+                alert("Please enter a plan title!");
+                return;
+            }
+
+            const taskTitles = document.querySelectorAll('.task-row-title');
+            const taskXps = document.querySelectorAll('.task-row-xp');
+
+            const tasks = [];
+            taskTitles.forEach((el, index) => {
+                const tTitle = el.value.trim();
+                const tXp = parseInt(taskXps[index].value) || 100;
+                if (tTitle) {
+                    tasks.push({
+                        id: 'task_' + Math.random().toString(36).substr(2, 6),
+                        title: tTitle,
+                        xp: tXp
+                    });
+                }
+            });
+
+            if (tasks.length === 0) {
+                alert("Add at least one valid task block!");
+                return;
+            }
+
+            myActivePlan = {
+                id: 'plan_' + Math.random().toString(36).substr(2, 6),
+                title: title,
+                author: myUserName,
+                tasks: tasks
+            };
+
+            myData.completedTasks = {};
+            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
+            saveLocalMyData();
+            pushMyData();
+
+            closeCreateChallengeModal();
+            switchView('lobby');
             updateUI();
-            closeTaskModal();
-        }
-
-        function deleteTaskFromModal() {
-            const id = document.getElementById('task-edit-id').value;
-            if (!id) return;
-
-            if (confirm("Are you sure you want to delete this block?")) {
-                taskDatabase = taskDatabase.filter(t => t.id !== id);
-                if (myData.completedTasks && myData.completedTasks[id]) {
-                    delete myData.completedTasks[id];
-                    saveLocalMyData();
-                    pushMyData();
-                }
-                localStorage.setItem('jee_custom_tasks', JSON.stringify(taskDatabase));
-                updateUI();
-                closeTaskModal();
-            }
-        }
-
-        function startCountdownTimer() {
-            function updateTimer() {
-                const now = new Date();
-                let testDate = new Date();
-                
-                const dayOfWeek = now.getDay();
-                let daysUntilSat = (6 - dayOfWeek + 7) % 7;
-                if (daysUntilSat === 0 && now.getHours() >= 8) {
-                    daysUntilSat = 7;
-                }
-                
-                testDate.setDate(now.getDate() + daysUntilSat);
-                testDate.setHours(8, 0, 0, 0);
-
-                const diff = testDate - now;
-
-                if (diff <= 0) {
-                    document.getElementById('exam-timer').innerText = "EXAM IS LIVE NOW!";
-                    return;
-                }
-
-                const hrs = Math.floor(diff / (1000 * 60 * 60));
-                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-                document.getElementById('exam-timer').innerText = `${hrs}h ${mins}m ${secs}s REMAINING`;
-            }
-
-            updateTimer();
-            setInterval(updateTimer, 1000);
         }
     </script>
 </body>
 </html>
+
