@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <!-- Firebase SDKs (v9 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -17,9 +19,23 @@
         .code-font { font-family: monospace; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Custom Shop Display Cosmetics */
+        .border-gold { border-color: #f59e0b !important; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+        .border-neon { border-color: #06b6d4 !important; box-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+        .border-fire { border-color: #ef4444 !important; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20 select-none">
+
+    <!-- Toast / Congratulation Popup Banner -->
+    <div id="toast-banner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden w-11/12 max-w-sm bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-2xl shadow-2xl border border-emerald-400 flex items-center gap-3 transition-all duration-300">
+        <div class="text-2xl" id="toast-icon">🎉</div>
+        <div class="flex-1">
+            <h4 class="font-bold text-xs uppercase tracking-wider" id="toast-title">Task Completed!</h4>
+            <p class="text-[11px] text-emerald-100" id="toast-message">You earned +200 XP and +20 Tokens!</p>
+        </div>
+    </div>
 
     <!-- Top Mobile Header -->
     <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-40 space-y-2 shadow-xl">
@@ -28,6 +44,11 @@
                 ⚔️ JEE BATTLE ARENA
             </h1>
             <div class="flex items-center gap-2">
+                <!-- Token Wallet Display -->
+                <span class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 code-font shadow">
+                    <i class="fa-solid fa-coins text-amber-400"></i>
+                    <span id="header-token-count">0</span>
+                </span>
                 <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-xl text-slate-300 font-bold cursor-pointer hover:border-blue-500 flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-user-gear text-blue-400"></i>
                     <span id="my-name-tag">Guest</span>
@@ -44,7 +65,7 @@
             <button onclick="hideConnError()" class="text-rose-400 hover:text-white text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <!-- DYNAMIC BOSS HP COMPONENT (Calculated from Plan XP & Target Deadline) -->
+        <!-- DYNAMIC BOSS HP COMPONENT -->
         <div class="bg-slate-950 border border-rose-900/60 rounded-xl p-2.5 shadow-inner space-y-1.5">
             <div class="flex items-center justify-between text-[11px] font-bold">
                 <span class="text-rose-400 flex items-center gap-1.5">
@@ -80,14 +101,19 @@
 
     <main class="p-4 max-w-lg mx-auto space-y-4">
 
-        <!-- TAB 1: HOME / LOBBY (CUSTOM PLAN & AI GENERATOR) -->
+        <!-- TAB 1: HOME / LOBBY (CUSTOM PLAN & DRILLS) -->
         <div id="view-lobby" class="space-y-4">
             
-            <!-- Question Drill Logger -->
+            <!-- Question Drill Logger with Token Rewards -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
-                <h3 class="text-xs font-bold text-slate-300 uppercase mb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-fire text-amber-400"></i> Question Practice Drills (+10 XP / Q)
-                </h3>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-amber-400"></i> Question Practice Drills
+                    </h3>
+                    <span class="text-[10px] bg-amber-950 border border-amber-600/40 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                        +10 XP & +2 Tokens / Q
+                    </span>
+                </div>
                 <div class="grid grid-cols-3 gap-2">
                     <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
                         <div class="text-[10px] font-bold text-blue-400 uppercase">Maths</div>
@@ -119,7 +145,7 @@
             <!-- HOME SCREEN PLAN CONTAINER -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
                 
-                <!-- IF NO PLAN CREATED: INLINE PLAN BUILDER + AI GEMINI PROMPT ASSISTANT -->
+                <!-- IF NO PLAN CREATED -->
                 <div id="home-plan-builder" class="space-y-4">
                     <div class="text-center py-2 space-y-1">
                         <div class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto text-lg">
@@ -129,7 +155,7 @@
                         <p class="text-xs text-slate-400">Design your plan manually or use Gemini AI to generate one instantly!</p>
                     </div>
 
-                    <!-- AI GEMINI PROMPT GENERATOR ASSISTANT -->
+                    <!-- AI GEMINI ASSISTANT -->
                     <div class="bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/40 rounded-xl p-3 space-y-2">
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold text-blue-300 flex items-center gap-1.5">
@@ -139,12 +165,12 @@
                                 <i class="fa-solid fa-copy"></i> Copy Prompt
                             </button>
                         </div>
-                        <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini to structure your schedule, then paste Gemini's JSON response below!</p>
+                        <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini, then paste Gemini's JSON response below!</p>
                         
-                        <textarea id="ai-json-import-input" rows="2" placeholder="Paste Gemini's structured response JSON here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
+                        <textarea id="ai-json-import-input" rows="2" placeholder="Paste Gemini's JSON response here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
                         
                         <button onclick="importAIPlanJSON()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 shadow">
-                            <i class="fa-solid fa-file-import"></i> Auto-Fill Plan from Gemini Output
+                            <i class="fa-solid fa-file-import"></i> Auto-Fill Plan from Gemini
                         </button>
                     </div>
 
@@ -182,7 +208,7 @@
                     </div>
                 </div>
 
-                <!-- IF PLAN IS ACTIVE: CHECKLIST DASHBOARD -->
+                <!-- IF PLAN IS ACTIVE -->
                 <div id="home-active-plan" class="hidden space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
@@ -193,7 +219,7 @@
                                 <i class="fa-solid fa-cloud-arrow-up"></i> Share to Lobby
                             </button>
                             <button onclick="resetHomePlan()" class="text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-xl font-bold text-slate-300 flex items-center gap-1">
-                                <i class="fa-solid fa-pen-to-square"></i> New Plan
+                                <i class="fa-solid fa-rotate-left"></i> Reset
                             </button>
                         </div>
                     </div>
@@ -211,13 +237,45 @@
                         </div>
                     </div>
 
+                    <!-- ADD ACTIVE TASK FORM -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-2.5 rounded-xl space-y-2">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">Add Single Task (Unique Only)</div>
+                        <div class="flex gap-2">
+                            <input type="text" id="add-active-task-title" placeholder="New unique task title..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            <input type="number" id="add-active-task-xp" value="200" placeholder="XP" class="w-16 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            <button onclick="addTaskToActivePlan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 rounded-lg shadow flex items-center gap-1">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="tasks-list" class="space-y-2"></div>
                 </div>
 
             </div>
         </div>
 
-        <!-- TAB 2: FIND & SHARE CHALLENGES -->
+        <!-- TAB 2: MARKETPLACE / SHOP (BUY COSMETICS) -->
+        <div id="view-shop" class="hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-store text-amber-400"></i> Item Marketplace
+                    </h2>
+                    <span class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 code-font">
+                        <i class="fa-solid fa-coins text-amber-400"></i>
+                        <span id="shop-token-count">0</span> Tokens
+                    </span>
+                </div>
+                <p class="text-[11px] text-slate-400">Spend Tokens earned from practice drills & fast task completions to unlock exclusive cosmetic titles and profile borders!</p>
+                
+                <div id="shop-items-grid" class="grid grid-cols-1 gap-3">
+                    <!-- Dynamic Shop Items loaded via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: FIND & SHARE CHALLENGES -->
         <div id="view-challenges" class="hidden space-y-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
                 <div class="flex justify-between items-center">
@@ -236,7 +294,7 @@
             </div>
         </div>
 
-        <!-- TAB 3: FIND PLAYERS -->
+        <!-- TAB 4: FIND PLAYERS -->
         <div id="view-players" class="hidden space-y-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
                 <div class="flex items-center justify-between">
@@ -252,7 +310,7 @@
             </div>
         </div>
 
-        <!-- TAB 4: BATTLE COMPARE -->
+        <!-- TAB 5: BATTLE COMPARE -->
         <div id="view-battle" class="hidden space-y-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
                 <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -262,7 +320,10 @@
                 <!-- My Stats Card -->
                 <div id="battle-my-card" class="bg-slate-800/90 border-2 border-blue-500 rounded-xl p-3 shadow-md">
                     <div class="flex justify-between items-center mb-1">
-                        <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
+                        <div class="flex items-center gap-1.5">
+                            <span id="battle-my-badge" class="text-[10px] bg-blue-950 border border-blue-500 text-blue-300 px-1.5 py-0.5 rounded font-bold">Novice</span>
+                            <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
+                        </div>
                         <span id="battle-my-xp" class="text-lg font-black text-white code-font">0 XP</span>
                     </div>
                     <div class="text-xs text-slate-400 flex justify-between">
@@ -282,10 +343,14 @@
 
     <!-- Bottom Gaming Navigation Bar -->
     <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-40">
-        <div class="max-w-lg mx-auto grid grid-cols-4 text-center py-2">
+        <div class="max-w-lg mx-auto grid grid-cols-5 text-center py-2">
             <button onclick="switchView('lobby')" id="nav-lobby" class="text-blue-400 flex flex-col items-center gap-1 transition">
                 <i class="fa-solid fa-shield-halved text-base"></i>
                 <span class="text-[10px] font-bold">Home</span>
+            </button>
+            <button onclick="switchView('shop')" id="nav-shop" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+                <i class="fa-solid fa-store text-base"></i>
+                <span class="text-[10px] font-bold">Market</span>
             </button>
             <button onclick="switchView('challenges')" id="nav-challenges" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
                 <i class="fa-solid fa-trophy text-base"></i>
@@ -327,6 +392,35 @@
         </div>
     </div>
 
+    <!-- Modal: Edit Task -->
+    <div id="edit-task-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-blue-400"></i> Edit Task Item
+                </h3>
+                <button onclick="closeEditTaskModal()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <input type="hidden" id="edit-task-id">
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Task Title</label>
+                <input type="text" id="edit-task-title-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400">Task XP</label>
+                <input type="number" id="edit-task-xp-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeEditTaskModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-xl">Cancel</button>
+                <button onclick="saveTaskEdits()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 rounded-xl shadow">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Firebase Config
         const firebaseConfig = {
@@ -353,17 +447,30 @@
         let myUserName = localStorage.getItem('jee_my_user_name') || '';
         let currentLobby = localStorage.getItem('jee_current_lobby') || 'main-arena';
 
-        // Custom User Plan (Starts empty unless user saved one)
         let myActivePlan = JSON.parse(localStorage.getItem('jee_active_plan')) || null;
 
         let myData = { 
-            completedTasks: {}, 
+            completedTasks: {},
+            quitTasks: {},
             questions: { maths: 0, physics: 0, chem: 0 }, 
-            name: myUserName 
+            name: myUserName,
+            tokens: 0,
+            equippedBorder: 'none',
+            equippedBadge: 'Novice'
         };
 
         let lobbyPlayers = {};
         let lobbyChallenges = {};
+
+        // Marketplace Catalog Items
+        const SHOP_ITEMS = [
+            { id: 'bdg_warrior', type: 'badge', title: '🔥 JEE Warrior', price: 50, desc: 'Display title for active study grinders.' },
+            { id: 'bdg_rank1', type: 'badge', title: '👑 AIR #1 Mindset', price: 150, desc: 'Show off elite rank motivation.' },
+            { id: 'bdg_wizard', type: 'badge', title: '⚡ Physics Wizard', price: 100, desc: 'Specialist badge for problem solvers.' },
+            { id: 'bdr_gold', type: 'border', title: '🌟 Golden Aura Border', price: 100, styleClass: 'border-gold', desc: 'Shimmering gold border for your lobby cards.' },
+            { id: 'bdr_neon', type: 'border', title: '💎 Cyber Neon Border', price: 150, styleClass: 'border-neon', desc: 'Glowing cyber neon outline.' },
+            { id: 'bdr_fire', type: 'border', title: '🔥 Flame Border', price: 200, styleClass: 'border-fire', desc: 'Fiery aura for top competitors.' }
+        ];
 
         window.onload = function() {
             if (!myUserName) {
@@ -382,8 +489,33 @@
                 renderActivePlan();
             }
 
+            renderShopCatalog();
             startDeadlineTimer();
         };
+
+        function triggerCongratulations(title, message) {
+            // Confetti effect
+            if (window.confetti) {
+                confetti({
+                    particleCount: 50,
+                    spread: 60,
+                    origin: { y: 0.8 }
+                });
+            }
+
+            // Show Toast Banner
+            const banner = document.getElementById('toast-banner');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+
+            banner.classList.remove('hidden');
+            banner.classList.add('flex');
+
+            setTimeout(() => {
+                banner.classList.add('hidden');
+                banner.classList.remove('flex');
+            }, 3500);
+        }
 
         function monitorConnectionState() {
             db.ref('.info/connected').on('value', (snap) => {
@@ -432,7 +564,7 @@
                     const players = snap.val() || {};
                     const count = Object.keys(players).length;
                     if (count >= LOBBY_MAX_CAPACITY && !players[myUserId]) {
-                        alert(`Lobby "${lobbyIn}" is currently full (${LOBBY_MAX_CAPACITY}/${LOBBY_MAX_CAPACITY} players). Try another lobby name!`);
+                        alert(`Lobby "${lobbyIn}" is full (${LOBBY_MAX_CAPACITY}/${LOBBY_MAX_CAPACITY} players). Try another lobby name!`);
                         return;
                     }
 
@@ -469,8 +601,12 @@
                 lobbyChallenges = val.challenges || {};
 
                 if (lobbyPlayers[myUserId]) {
-                    myData.completedTasks = lobbyPlayers[myUserId].completedTasks || myData.completedTasks;
+                    myData.completedTasks = lobbyPlayers[myUserId].completedTasks || myData.completedTasks || {};
+                    myData.quitTasks = lobbyPlayers[myUserId].quitTasks || myData.quitTasks || {};
                     myData.questions = lobbyPlayers[myUserId].questions || myData.questions;
+                    myData.tokens = lobbyPlayers[myUserId].tokens ?? myData.tokens ?? 0;
+                    myData.equippedBorder = lobbyPlayers[myUserId].equippedBorder || myData.equippedBorder || 'none';
+                    myData.equippedBadge = lobbyPlayers[myUserId].equippedBadge || myData.equippedBadge || 'Novice';
                     saveLocalMyData();
                 } else {
                     pushMyData();
@@ -480,7 +616,7 @@
                 updateUI();
                 hideConnError();
             }, (err) => {
-                showConnError(`Sync error: ${err.message}. Ensure Firebase database rules are public.`);
+                showConnError(`Sync error: ${err.message}`);
             });
         }
 
@@ -504,6 +640,11 @@
             if (saved) {
                 try { myData = JSON.parse(saved); } catch (e) {}
             }
+            if (!myData.completedTasks) myData.completedTasks = {};
+            if (!myData.quitTasks) myData.quitTasks = {};
+            if (myData.tokens === undefined) myData.tokens = 0;
+            if (!myData.equippedBorder) myData.equippedBorder = 'none';
+            if (!myData.equippedBadge) myData.equippedBadge = 'Novice';
         }
 
         function calculateXP(data) {
@@ -527,7 +668,6 @@
             const qTotal = (q.maths || 0) + (q.physics || 0) + (q.chem || 0);
             xp += (qTotal * 10);
 
-            // Boss max HP equals total plan XP + question bonus cap
             const maxBossHP = Math.max(1000, totalPlanXP + (qTotal * 10));
 
             return { xp, tasks, qTotal, maxBossHP, totalPlanXP };
@@ -536,7 +676,11 @@
         function updateUI() {
             const myStats = calculateXP(myData);
 
-            // DYNAMIC SOLO BOSS HP (PER PERSON & RELATIVE TO PLAN TASKS)
+            // Tokens Update
+            document.getElementById('header-token-count').innerText = (myData.tokens || 0).toLocaleString();
+            document.getElementById('shop-token-count').innerText = (myData.tokens || 0).toLocaleString();
+
+            // BOSS HEALTH
             const maxHP = myStats.maxBossHP;
             const damageDone = Math.min(myStats.xp, maxHP);
             const bossHPLeft = Math.max(0, maxHP - damageDone);
@@ -560,10 +704,15 @@
             document.getElementById('q-physics-count').innerText = myData.questions?.physics || 0;
             document.getElementById('q-chem-count').innerText = myData.questions?.chem || 0;
 
-            // Battle Compare Personal Card
+            // Battle Personal Card
             document.getElementById('battle-my-xp').innerText = `${myStats.xp} XP`;
             document.getElementById('battle-my-damage').innerText = `${damageDone} HP`;
             document.getElementById('battle-my-qs').innerText = myStats.qTotal;
+            document.getElementById('battle-my-badge').innerText = myData.equippedBadge || 'Novice';
+
+            // Apply equipped border to my battle card
+            const myCard = document.getElementById('battle-my-card');
+            myCard.className = `bg-slate-800/90 border-2 rounded-xl p-3 shadow-md ${myData.equippedBorder !== 'none' ? myData.equippedBorder : 'border-blue-500'}`;
 
             if (myActivePlan) {
                 document.getElementById('home-plan-builder').classList.add('hidden');
@@ -577,26 +726,34 @@
             renderChallengesFeed();
             renderPlayersDirectory();
             renderBattleRivals();
+            renderShopCatalog();
         }
 
         function addQ(subject, amount) {
             if (!myData.questions) myData.questions = { maths: 0, physics: 0, chem: 0 };
             const curr = myData.questions[subject] || 0;
-            myData.questions[subject] = Math.max(0, curr + amount);
+            
+            if (amount > 0) {
+                myData.questions[subject] = curr + amount;
+                myData.tokens = (myData.tokens || 0) + (amount * 2); // +2 Tokens per solved question
+                triggerCongratulations("Question Solved! 🔥", `Awesome job! Earned +10 XP & +${amount * 2} Tokens!`);
+            } else {
+                myData.questions[subject] = Math.max(0, curr + amount);
+            }
+
             saveLocalMyData();
             pushMyData();
             updateUI();
         }
 
-        /* --- AI GEMINI PROMPT GENERATOR & PARSER --- */
+        /* --- AI GEMINI PROMPT GENERATOR --- */
         function copyGeminiPrompt() {
             const type = document.getElementById('home-builder-type').value;
             const hours = document.getElementById('home-builder-hours').value || 24;
             
-            const promptText = `Act as an expert JEE Exam Coach. I am creating a ${type.toUpperCase()} sprint plan to complete within ${hours} hours.
-Please generate a structured list of tasks and return strictly raw valid JSON with no markdown formatting or extra text.
+            const promptText = `Act as an expert JEE Exam Coach. Generate a ${type.toUpperCase()} sprint plan to complete within ${hours} hours.
+Please generate structured UNIQUE tasks and return strictly raw valid JSON with no markdown formatting:
 
-Use this JSON structure:
 {
   "title": "${type === 'weekly' ? 'Weekly JEE Master Strategy' : '24-Hour Intensive Sprint'}",
   "type": "${type}",
@@ -610,7 +767,7 @@ Use this JSON structure:
 
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(promptText);
-                alert("Gemini Prompt Copied! Paste it into Gemini, then paste Gemini's JSON response back into the text box below.");
+                alert("Gemini Prompt Copied!");
             } else {
                 alert("Prompt text: \n\n" + promptText);
             }
@@ -618,19 +775,11 @@ Use this JSON structure:
 
         function importAIPlanJSON() {
             const raw = document.getElementById('ai-json-import-input').value.trim();
-            if (!raw) {
-                alert("Please paste the JSON string generated by Gemini!");
-                return;
-            }
+            if (!raw) return alert("Please paste the JSON string!");
 
             try {
-                // Strip Markdown block ticks if user included them
                 const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
                 const parsed = JSON.parse(cleaned);
-
-                if (!parsed.title || !Array.isArray(parsed.tasks)) {
-                    throw new Error("Invalid plan structure. Ensure JSON has 'title' and 'tasks' array.");
-                }
 
                 document.getElementById('home-builder-title').value = parsed.title;
                 document.getElementById('home-builder-type').value = parsed.type || 'daily';
@@ -639,19 +788,26 @@ Use this JSON structure:
                 const container = document.getElementById('home-builder-tasks');
                 container.innerHTML = '';
 
+                const seenTitles = new Set();
                 parsed.tasks.forEach(t => {
-                    const row = document.createElement('div');
-                    row.className = "flex gap-2 items-center";
-                    row.innerHTML = `
-                        <input type="text" value="${t.title || ''}" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                        <input type="number" value="${t.xp || 200}" placeholder="XP" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                    `;
-                    container.appendChild(row);
+                    const cleanTitle = (t.title || '').trim();
+                    const normalized = cleanTitle.toLowerCase();
+
+                    if (cleanTitle && !seenTitles.has(normalized)) {
+                        seenTitles.add(normalized);
+                        const row = document.createElement('div');
+                        row.className = "flex gap-2 items-center";
+                        row.innerHTML = `
+                            <input type="text" value="${cleanTitle}" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            <input type="number" value="${t.xp || 200}" placeholder="XP" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                        `;
+                        container.appendChild(row);
+                    }
                 });
 
-                alert("Successfully imported AI plan tasks! Review and click 'Start Custom Sprint' to begin.");
+                alert("Successfully imported AI plan tasks!");
             } catch (err) {
-                alert("Failed to parse Gemini JSON: " + err.message);
+                alert("Failed to parse JSON: " + err.message);
             }
         }
 
@@ -679,19 +835,21 @@ Use this JSON structure:
             const type = document.getElementById('home-builder-type').value;
             const hours = parseInt(document.getElementById('home-builder-hours').value) || (type === 'weekly' ? 168 : 24);
 
-            if (!title) {
-                alert("Please give your plan a title!");
-                return;
-            }
+            if (!title) return alert("Please give your plan a title!");
 
             const titles = document.querySelectorAll('.home-task-title');
             const xps = document.querySelectorAll('.home-task-xp');
 
             const tasks = [];
+            const seenTitles = new Set();
+
             titles.forEach((el, idx) => {
                 const tVal = el.value.trim();
                 const xVal = parseInt(xps[idx].value) || 100;
-                if (tVal) {
+                const normalized = tVal.toLowerCase();
+
+                if (tVal && !seenTitles.has(normalized)) {
+                    seenTitles.add(normalized);
                     tasks.push({
                         id: 'tsk_' + Math.random().toString(36).substr(2, 6),
                         title: tVal,
@@ -700,10 +858,7 @@ Use this JSON structure:
                 }
             });
 
-            if (tasks.length === 0) {
-                alert("Please add at least one task!");
-                return;
-            }
+            if (tasks.length === 0) return alert("Please add at least one unique task!");
 
             const deadlineTime = Date.now() + (hours * 60 * 60 * 1000);
 
@@ -712,11 +867,13 @@ Use this JSON structure:
                 title: title,
                 type: type,
                 deadline: deadlineTime,
+                startTime: Date.now(),
                 author: myUserName || 'You',
                 tasks: tasks
             };
 
             myData.completedTasks = {};
+            myData.quitTasks = {};
             localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
             saveLocalMyData();
             pushMyData();
@@ -724,15 +881,144 @@ Use this JSON structure:
         }
 
         function resetHomePlan() {
-            if (myActivePlan && !confirm("Create a new plan? This will clear your current task checklist progress.")) {
-                return;
-            }
+            if (myActivePlan && !confirm("Create a new plan? This will reset your progress.")) return;
             myActivePlan = null;
             localStorage.removeItem('jee_active_plan');
             myData.completedTasks = {};
+            myData.quitTasks = {};
             saveLocalMyData();
             pushMyData();
             initHomeBuilderRows();
+            updateUI();
+        }
+
+        /* --- TASK ACTIONS: ADD, EDIT, DELETE, QUIT, COMPLETE --- */
+        function addTaskToActivePlan() {
+            if (!myActivePlan) return;
+
+            const titleIn = document.getElementById('add-active-task-title').value.trim();
+            const xpIn = parseInt(document.getElementById('add-active-task-xp').value) || 200;
+
+            if (!titleIn) return alert("Please enter a task title!");
+
+            const isDuplicate = myActivePlan.tasks.some(t => t.title.trim().toLowerCase() === titleIn.toLowerCase());
+            if (isDuplicate) return alert("Task already exists! Each task must be unique.");
+
+            myActivePlan.tasks.push({
+                id: 'tsk_' + Math.random().toString(36).substr(2, 6),
+                title: titleIn,
+                xp: xpIn
+            });
+
+            document.getElementById('add-active-task-title').value = '';
+            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
+            saveLocalMyData();
+            pushMyData();
+            updateUI();
+        }
+
+        function openEditTaskModal(taskId) {
+            if (!myActivePlan) return;
+            const task = myActivePlan.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            document.getElementById('edit-task-id').value = task.id;
+            document.getElementById('edit-task-title-input').value = task.title;
+            document.getElementById('edit-task-xp-input').value = task.xp;
+            document.getElementById('edit-task-modal').classList.remove('hidden');
+        }
+
+        function closeEditTaskModal() {
+            document.getElementById('edit-task-modal').classList.add('hidden');
+        }
+
+        function saveTaskEdits() {
+            const taskId = document.getElementById('edit-task-id').value;
+            const newTitle = document.getElementById('edit-task-title-input').value.trim();
+            const newXP = parseInt(document.getElementById('edit-task-xp-input').value) || 100;
+
+            if (!newTitle) return alert("Title cannot be empty!");
+
+            const isDuplicate = myActivePlan.tasks.some(t => t.id !== taskId && t.title.trim().toLowerCase() === newTitle.toLowerCase());
+            if (isDuplicate) return alert("Task title must be unique!");
+
+            const task = myActivePlan.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.title = newTitle;
+                task.xp = newXP;
+                localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
+                saveLocalMyData();
+                pushMyData();
+                closeEditTaskModal();
+                updateUI();
+            }
+        }
+
+        function deleteTask(taskId) {
+            if (!myActivePlan || !confirm("Delete this task?")) return;
+
+            myActivePlan.tasks = myActivePlan.tasks.filter(t => t.id !== taskId);
+            if (myData.completedTasks) delete myData.completedTasks[taskId];
+            if (myData.quitTasks) delete myData.quitTasks[taskId];
+
+            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
+            saveLocalMyData();
+            pushMyData();
+            updateUI();
+        }
+
+        function toggleQuitTask(taskId) {
+            if (!myData.quitTasks) myData.quitTasks = {};
+            if (!myData.completedTasks) myData.completedTasks = {};
+
+            if (myData.quitTasks[taskId]) {
+                delete myData.quitTasks[taskId];
+            } else {
+                myData.quitTasks[taskId] = true;
+                delete myData.completedTasks[taskId];
+            }
+
+            saveLocalMyData();
+            pushMyData();
+            updateUI();
+        }
+
+        function toggleTask(taskId) {
+            if (!myData.completedTasks) myData.completedTasks = {};
+            if (!myData.quitTasks) myData.quitTasks = {};
+
+            const isNowCompleted = !myData.completedTasks[taskId];
+
+            if (isNowCompleted) {
+                myData.completedTasks[taskId] = true;
+                delete myData.quitTasks[taskId];
+
+                const task = myActivePlan ? myActivePlan.tasks.find(t => t.id === taskId) : null;
+                const taskXP = task ? task.xp : 200;
+
+                // Speed calculation bonus tokens
+                let speedTokenBonus = 10;
+                if (myActivePlan && myActivePlan.deadline) {
+                    const totalDuration = (myActivePlan.deadline - (myActivePlan.startTime || Date.now()));
+                    const timeLeft = myActivePlan.deadline - Date.now();
+                    if (timeLeft > totalDuration * 0.5) {
+                        speedTokenBonus += 15; // Fast completion bonus!
+                    }
+                }
+
+                myData.tokens = (myData.tokens || 0) + speedTokenBonus;
+
+                triggerCongratulations(
+                    "Task Completed! 🚀", 
+                    `Earned +${taskXP} XP & +${speedTokenBonus} Tokens! ${speedTokenBonus > 10 ? '(includes Speed Bonus ⚡)' : ''}`
+                );
+
+            } else {
+                delete myData.completedTasks[taskId];
+            }
+
+            saveLocalMyData();
+            pushMyData();
             updateUI();
         }
 
@@ -752,19 +1038,45 @@ Use this JSON structure:
 
             tasks.forEach(t => {
                 const isChecked = !!(myData.completedTasks && myData.completedTasks[t.id]);
+                const isQuit = !!(myData.quitTasks && myData.quitTasks[t.id]);
                 if (isChecked) completedCount++;
 
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${isChecked ? 'bg-slate-900/60 border-emerald-500/50' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`;
-                card.onclick = () => toggleTask(t.id);
+                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all ${
+                    isChecked 
+                        ? 'bg-slate-900/60 border-emerald-500/50' 
+                        : isQuit 
+                        ? 'bg-slate-900/40 border-rose-900/50 opacity-70' 
+                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                }`;
+
                 card.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
+                    <div class="flex items-center gap-3 overflow-hidden mr-2">
+                        <div onclick="toggleTask('${t.id}')" class="w-5 h-5 rounded border flex items-center justify-center cursor-pointer shrink-0 ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
                             <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
                         </div>
-                        <span class="text-xs font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</span>
+                        <span onclick="toggleTask('${t.id}')" class="text-xs font-bold truncate cursor-pointer ${
+                            isChecked ? 'line-through text-slate-400' : isQuit ? 'line-through text-rose-400/80' : 'text-slate-100'
+                        }">
+                            ${t.title} ${isQuit ? '<span class="text-[10px] text-rose-400 font-normal ml-1">(QUITTED)</span>' : ''}
+                        </span>
                     </div>
-                    <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
+
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-xs font-bold ${isQuit ? 'text-rose-500 line-through' : 'text-amber-400'} code-font">+${t.xp}XP</span>
+                        
+                        <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/60 rounded-lg p-1">
+                            <button onclick="toggleQuitTask('${t.id}')" title="${isQuit ? 'Resume Task' : 'Quit Task'}" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 ${isQuit ? 'text-amber-400' : 'text-rose-400'}">
+                                <i class="fa-solid ${isQuit ? 'fa-rotate-left' : 'fa-ban'} text-[11px]"></i>
+                            </button>
+                            <button onclick="openEditTaskModal('${t.id}')" title="Edit Task" class="w-6 h-6 flex items-center justify-center text-blue-400 hover:bg-slate-700 rounded">
+                                <i class="fa-solid fa-pen text-[11px]"></i>
+                            </button>
+                            <button onclick="deleteTask('${t.id}')" title="Delete Task" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded">
+                                <i class="fa-solid fa-trash-can text-[11px]"></i>
+                            </button>
+                        </div>
+                    </div>
                 `;
                 list.appendChild(card);
             });
@@ -772,13 +1084,63 @@ Use this JSON structure:
             document.getElementById('cur-plan-progress-badge').innerText = `${completedCount}/${tasks.length} Done`;
         }
 
-        function toggleTask(taskId) {
-            if (!myData.completedTasks) myData.completedTasks = {};
-            if (myData.completedTasks[taskId]) {
-                delete myData.completedTasks[taskId];
-            } else {
-                myData.completedTasks[taskId] = true;
+        /* --- MARKETPLACE & COSMETICS LOGIC --- */
+        function renderShopCatalog() {
+            const grid = document.getElementById('shop-items-grid');
+            grid.innerHTML = '';
+
+            SHOP_ITEMS.forEach(item => {
+                const isEquipped = item.type === 'border' 
+                    ? myData.equippedBorder === item.styleClass 
+                    : myData.equippedBadge === item.title;
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex justify-between items-center";
+                card.innerHTML = `
+                    <div class="space-y-0.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-white">${item.title}</span>
+                            <span class="text-[9px] bg-slate-700 text-slate-300 px-1.5 py-0.2 rounded font-bold uppercase">${item.type}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">${item.desc}</p>
+                    </div>
+
+                    <button onclick="buyOrEquipShopItem('${item.id}')" class="text-xs ${
+                        isEquipped 
+                            ? 'bg-emerald-600 text-white cursor-default' 
+                            : 'bg-amber-600 hover:bg-amber-500 text-white'
+                    } font-bold px-3 py-1.5 rounded-xl shadow code-font shrink-0 ml-2">
+                        ${isEquipped ? 'Equipped ✨' : `${item.price} Tokens`}
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function buyOrEquipShopItem(itemId) {
+            const item = SHOP_ITEMS.find(i => i.id === itemId);
+            if (!item) return;
+
+            const isEquipped = item.type === 'border' 
+                ? myData.equippedBorder === item.styleClass 
+                : myData.equippedBadge === item.title;
+
+            if (isEquipped) return;
+
+            if ((myData.tokens || 0) < item.price) {
+                alert(`Not enough Tokens! Solve more questions or complete tasks quickly to earn ${item.price - (myData.tokens || 0)} more Tokens.`);
+                return;
             }
+
+            myData.tokens -= item.price;
+
+            if (item.type === 'border') {
+                myData.equippedBorder = item.styleClass;
+            } else if (item.type === 'badge') {
+                myData.equippedBadge = item.title;
+            }
+
+            triggerCongratulations("Item Unlocked! 🛍️", `You successfully purchased and equipped ${item.title}!`);
             saveLocalMyData();
             pushMyData();
             updateUI();
@@ -790,7 +1152,7 @@ Use this JSON structure:
 
             const keys = Object.keys(lobbyChallenges);
             if (keys.length === 0) {
-                feed.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No challenges published in this lobby yet. Build and share your plan on the Home tab!</div>`;
+                feed.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No challenges published in this lobby yet.</div>`;
                 return;
             }
 
@@ -824,14 +1186,15 @@ Use this JSON structure:
             const challenge = lobbyChallenges[challengeKey];
             if (!challenge) return;
 
-            // Give accepted plan a fresh 24h or 168h deadline
             const hours = challenge.type === 'weekly' ? 168 : 24;
             myActivePlan = {
                 ...challenge,
-                deadline: Date.now() + (hours * 60 * 60 * 1000)
+                deadline: Date.now() + (hours * 60 * 60 * 1000),
+                startTime: Date.now()
             };
 
             myData.completedTasks = {};
+            myData.quitTasks = {};
             localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
             saveLocalMyData();
             pushMyData();
@@ -841,12 +1204,12 @@ Use this JSON structure:
 
         function publishCurrentPlanAsChallenge() {
             if (!myActivePlan || !myActivePlan.tasks || myActivePlan.tasks.length === 0) {
-                alert("Create a plan with at least one task before sharing!");
+                alert("Create a plan first!");
                 return;
             }
             myActivePlan.author = myUserName;
             db.ref(`lobbies/${currentLobby}/challenges`).push(myActivePlan).then(() => {
-                alert(`"${myActivePlan.title}" has been published to the lobby challenge market!`);
+                alert(`"${myActivePlan.title}" published!`);
                 switchView('challenges');
             }).catch(err => showConnError(err.message));
         }
@@ -859,7 +1222,7 @@ Use this JSON structure:
             document.getElementById('lobby-online-count').innerText = `${playerIds.length}/${LOBBY_MAX_CAPACITY} Players`;
 
             if (playerIds.length === 0) {
-                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No active players online in this lobby.</div>`;
+                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No active players online.</div>`;
                 return;
             }
 
@@ -868,13 +1231,18 @@ Use this JSON structure:
                 const pStats = calculateXP(p);
                 const isMe = id === myUserId;
 
+                const borderClass = p.equippedBorder && p.equippedBorder !== 'none' ? p.equippedBorder : 'border-slate-700/50';
+
                 const item = document.createElement('div');
-                item.className = "flex items-center justify-between bg-slate-800/60 border border-slate-700/50 p-2.5 rounded-xl text-xs";
+                item.className = `flex items-center justify-between bg-slate-800/60 border ${borderClass} p-2.5 rounded-xl text-xs`;
                 item.innerHTML = `
                     <div class="flex items-center gap-2 overflow-hidden">
                         <span class="w-2.5 h-2.5 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'} animate-pulse shrink-0"></span>
                         <div class="truncate">
-                            <span class="font-bold text-slate-200">${p.name || 'Player'} ${isMe ? '(You)' : ''}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-slate-200">${p.name || 'Player'} ${isMe ? '(You)' : ''}</span>
+                                <span class="text-[9px] bg-blue-950 border border-blue-500/50 text-blue-300 px-1 py-0.2 rounded font-bold">${p.equippedBadge || 'Novice'}</span>
+                            </div>
                             <div class="text-[10px] text-slate-400 truncate">Plan: ${p.activePlanTitle || 'Custom Sprint'}</div>
                         </div>
                     </div>
@@ -890,7 +1258,6 @@ Use this JSON structure:
 
             const playerIds = Object.keys(lobbyPlayers);
             
-            // Sort players by total XP descending
             const sortedPlayers = playerIds.map(id => ({
                 id,
                 data: lobbyPlayers[id],
@@ -903,7 +1270,7 @@ Use this JSON structure:
                 container.innerHTML = `
                     <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-4 text-center text-xs text-slate-500">
                         <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                        No opponents in lobby "${currentLobby}" to compare yet. Invite study partners to join!
+                        No opponents in lobby "${currentLobby}" to compare yet.
                     </div>
                 `;
                 return;
@@ -913,13 +1280,15 @@ Use this JSON structure:
                 const opp = r.data;
                 const oppStats = r.stats;
                 const oppDamage = Math.min(oppStats.xp, oppStats.maxBossHP);
+                const borderClass = opp.equippedBorder && opp.equippedBorder !== 'none' ? opp.equippedBorder : 'border-purple-500/40';
 
                 const card = document.createElement('div');
-                card.className = "bg-purple-950/30 border border-purple-500/40 rounded-xl p-3 space-y-1.5 shadow";
+                card.className = `bg-purple-950/30 border ${borderClass} rounded-xl p-3 space-y-1.5 shadow`;
                 card.innerHTML = `
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-black text-amber-400 code-font">#${index + 1}</span>
+                            <span class="text-[9px] bg-purple-900 border border-purple-400 text-purple-200 px-1.5 py-0.2 rounded font-bold">${opp.equippedBadge || 'Novice'}</span>
                             <span class="text-xs font-bold text-purple-300">${opp.name || 'Competitor'}</span>
                         </div>
                         <span class="text-base font-black text-white code-font">${oppStats.xp} XP</span>
@@ -934,14 +1303,15 @@ Use this JSON structure:
         }
 
         function switchView(view) {
-            ['lobby', 'challenges', 'players', 'battle'].forEach(v => {
+            ['lobby', 'shop', 'challenges', 'players', 'battle'].forEach(v => {
                 document.getElementById(`view-${v}`).classList.add('hidden');
                 const btn = document.getElementById(`nav-${v}`);
-                btn.className = "text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition";
+                if (btn) btn.className = "text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition";
             });
 
             document.getElementById(`view-${view}`).classList.remove('hidden');
-            document.getElementById(`nav-${view}`).className = "text-blue-400 flex flex-col items-center gap-1 transition font-bold";
+            const activeBtn = document.getElementById(`nav-${view}`);
+            if (activeBtn) activeBtn.className = "text-blue-400 flex flex-col items-center gap-1 transition font-bold";
         }
 
         function startDeadlineTimer() {
@@ -975,5 +1345,4 @@ Use this JSON structure:
     </script>
 </body>
 </html>
-
 
