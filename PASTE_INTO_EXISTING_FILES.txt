@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════
+ SNIPPET 1 — paste into: android/app/src/main/AndroidManifest.xml
+═══════════════════════════════════════════════════════════════
+
+Find the line that says   </application>   (near the bottom of the file)
+and paste this block IMMEDIATELY ABOVE it:
+
+    <receiver android:name=".BossWidgetProvider" android:exported="true">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/boss_widget_info" />
+    </receiver>
+
+So the end of the file looks like this:
+
+    ...
+    <receiver android:name=".BossWidgetProvider" android:exported="true">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/boss_widget_info" />
+    </receiver>
+    </application>
+</manifest>
+
+
+═══════════════════════════════════════════════════════════════
+ SNIPPET 2 — paste into: android/app/src/main/java/com/jeebattlearena/app/MainActivity.java
+═══════════════════════════════════════════════════════════════
+
+This file starts out very short (Capacitor generates it automatically).
+It looks like this by default:
+
+    package com.jeebattlearena.app;
+
+    import com.getcapacitor.BridgeActivity;
+
+    public class MainActivity extends BridgeActivity {}
+
+REPLACE the whole file with this:
+
+    package com.jeebattlearena.app;
+
+    import android.os.Bundle;
+    import com.getcapacitor.BridgeActivity;
+
+    public class MainActivity extends BridgeActivity {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            registerPlugin(BossWidgetPlugin.class);
+            super.onCreate(savedInstanceState);
+        }
+    }
+
+(If your MainActivity.java already has other code in it — for example if
+you added other plugins before — just add the "registerPlugin(...)" line
+and the "import android.os.Bundle;" line, don't delete anything else.)
