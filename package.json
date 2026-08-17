@@ -1,0 +1,28 @@
+{
+  "name": "jee-battle-arena",
+  "version": "1.0.0",
+  "description": "JEE Battle Arena - Gamified Study App",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Static web app - no build step needed'",
+    "sync": "npx cap sync android",
+    "open:android": "npx cap open android",
+    "apk:debug": "cd android && ./gradlew assembleDebug",
+    "apk:release": "cd android && ./gradlew assembleRelease",
+    "cap:init": "npx cap add android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/network": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/storage": "^1.2.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "appId": "com.jeebattlearena.app",
+  "appName": "JEE Battle Arena",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "buildOptions": {
+      "keystorePath": "jee-battle-arena.keystore",
+      "keystoreAlias": "jee-battle-arena",
+      "releaseType": "APK"
+    },
+    "allowMixedContent": false,
+    "backgroundColor": "#020617",
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#020617",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#020617",
+      "overlaysWebView": false
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "DARK",
+      "resizeOnFullScreen": true
+    }
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
