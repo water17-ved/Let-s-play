@@ -3,159 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JEE Battle Arena</title>
+    <title>JEE 3D Open World Simulation</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Canvas Confetti SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Three.js (3D WebGL Library) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Firebase SDKs (v9 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
         .code-font { font-family: monospace; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Custom Shop Display Cosmetics */
-        .border-gold { border-color: #f59e0b !important; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
-        .border-neon { border-color: #06b6d4 !important; box-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
-        .border-fire { border-color: #ef4444 !important; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+        @keyframes toast-in {
+            0% { transform: translateY(-20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .animate-toast { animation: toast-in 0.3s ease-out forwards; }
+        #webgl-container { position: absolute; inset: 0; z-index: 0; cursor: grab; }
+        #webgl-container:active { cursor: grabbing; }
+        canvas { touch-action: none; user-select: none; width: 100%; height: 100%; }
+        .hud-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 select-none">
+<body class="bg-slate-950 text-slate-100 min-h-screen select-none relative">
 
-    <!-- Toast / Congratulation Popup Banner -->
-    <div id="toast-banner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden w-11/12 max-w-sm bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-2xl shadow-2xl border border-emerald-400 flex items-center gap-3 transition-all duration-300">
-        <div class="text-2xl" id="toast-icon">🎉</div>
-        <div class="flex-1">
-            <h4 class="font-bold text-xs uppercase tracking-wider" id="toast-title">Task Completed!</h4>
-            <p class="text-[11px] text-emerald-100" id="toast-message">You earned +200 XP and +20 Tokens!</p>
+    <!-- 3D WebGL Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- Celebration Popup Toast -->
+    <div id="congratulations-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-xs w-full px-4">
+        <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 border-2 border-emerald-300 rounded-2xl p-3 shadow-2xl text-center text-white animate-toast space-y-1">
+            <div class="text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-trophy text-amber-300 animate-bounce"></i> 3D Strike Landed!
+            </div>
+            <p id="toast-message" class="text-xs font-bold">Awesome work! +25 Tokens Earned 🎉</p>
         </div>
     </div>
 
-    <!-- Top Mobile Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-40 space-y-2 shadow-xl">
-        <div class="flex items-center justify-between">
-            <h1 class="text-base font-black text-blue-400 flex items-center gap-2 tracking-wide">
-                ⚔️ JEE BATTLE ARENA
-            </h1>
+    <!-- HUD Overlay Header -->
+    <header class="fixed top-2 left-2 right-2 z-30 pointer-events-none flex flex-col gap-1.5 max-w-lg mx-auto">
+        <div class="flex items-center justify-between bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 rounded-2xl shadow-2xl pointer-events-auto">
             <div class="flex items-center gap-2">
-                <!-- Token Wallet Display -->
-                <span class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 code-font shadow">
-                    <i class="fa-solid fa-coins text-amber-400"></i>
-                    <span id="header-token-count">0</span>
+                <h1 class="text-xs sm:text-sm font-black text-blue-400 flex items-center gap-1.5 tracking-wide hud-shadow">
+                    🎮 3D JEE WORLD SIM
+                </h1>
+                <span id="sim-online-counter" class="text-[9px] text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-600/40 px-2 py-0.5 rounded-full">
+                    1 Online
                 </span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <!-- Reset Camera Button -->
+                <button onclick="resetCameraView()" class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold px-2 py-1 rounded-xl flex items-center gap-1 shadow transition">
+                    <i class="fa-solid fa-video text-blue-400"></i> Reset View
+                </button>
+
+                <!-- Tokens Balance Display -->
+                <div class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-coins text-amber-400"></i>
+                    <span id="my-tokens-count" class="code-font">0</span>
+                </div>
+
                 <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-xl text-slate-300 font-bold cursor-pointer hover:border-blue-500 flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-user-gear text-blue-400"></i>
-                    <span id="my-name-tag">Guest</span>
+                    <span id="my-name-tag">Hero</span>
                 </span>
-                <span id="sync-status" title="Connecting..." class="text-xs text-amber-400 font-semibold">
-                    <i class="fa-solid fa-spinner fa-spin"></i>
+                <span id="sync-status" title="Connected" class="text-xs text-emerald-400 font-semibold">
+                    <i class="fa-solid fa-cloud"></i>
                 </span>
             </div>
         </div>
 
-        <!-- Connection Error Banner -->
-        <div id="conn-error-banner" class="hidden bg-rose-950/70 border border-rose-600 rounded-xl p-2 text-[11px] text-rose-300 flex items-center justify-between">
-            <span id="conn-error-text"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Connection error.</span>
-            <button onclick="hideConnError()" class="text-rose-400 hover:text-white text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-
-        <!-- DYNAMIC BOSS HP COMPONENT -->
-        <div class="bg-slate-950 border border-rose-900/60 rounded-xl p-2.5 shadow-inner space-y-1.5">
-            <div class="flex items-center justify-between text-[11px] font-bold">
-                <span class="text-rose-400 flex items-center gap-1.5">
+        <!-- WORLD BOSS HP HUD COMPONENT -->
+        <div class="bg-slate-950/90 backdrop-blur border border-rose-900/60 rounded-xl p-2 shadow-xl pointer-events-auto space-y-1">
+            <div class="flex items-center justify-between text-[10px] font-bold">
+                <span class="text-rose-400 flex items-center gap-1">
                     <i id="boss-icon" class="fa-solid fa-skull text-rose-500 animate-pulse"></i>
-                    <span id="boss-title-tag">SOLO BOSS HEALTH</span>
+                    <span id="boss-title-tag">WORLD BOSS: IRON COLOSSUS</span>
                 </span>
                 <span id="boss-hp-text" class="text-slate-300 code-font">0 / 0 HP</span>
             </div>
-            <div class="w-full bg-slate-800 h-3.5 rounded-full overflow-hidden border border-slate-700 relative">
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700 relative">
                 <div id="boss-hp-fill" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-400 h-full w-full transition-all duration-500 rounded-full"></div>
-            </div>
-            <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                <span>Mode: <b id="boss-mode-badge" class="text-indigo-400 uppercase">Daily</b></span>
-                <span class="flex items-center gap-1">
-                    <i class="fa-regular fa-clock text-amber-400"></i>
-                    <span id="boss-deadline-timer" class="code-font text-amber-300">Set a Plan</span>
-                </span>
             </div>
         </div>
 
-        <!-- Active Lobby Info Bar -->
-        <div class="flex items-center justify-between bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700/60 text-xs">
-            <div class="flex items-center gap-1.5">
-                <i class="fa-solid fa-door-open text-amber-400"></i>
-                <span class="text-slate-400">Lobby:</span>
-                <span id="active-lobby-tag" class="font-bold text-amber-400 uppercase code-font">MAIN-ARENA</span>
-            </div>
-            <button onclick="openLoginModal()" class="text-[11px] text-blue-400 font-bold hover:underline flex items-center gap-1">
-                <i class="fa-solid fa-right-left"></i> Switch Lobby
-            </button>
+        <!-- Camera Control Instructions Badge -->
+        <div class="bg-slate-950/70 backdrop-blur border border-slate-800/80 rounded-xl px-2.5 py-1 text-[10px] text-slate-400 flex items-center justify-between pointer-events-auto">
+            <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-spin text-blue-400 animate-spin-slow"></i>
+                <b>Drag</b> to rotate view • <b>Scroll/Pinch</b> to zoom
+            </span>
+            <span class="text-slate-500 font-semibold">WASD / Arrow Keys to Move</span>
         </div>
     </header>
 
-    <main class="p-4 max-w-lg mx-auto space-y-4">
+    <!-- Zone Interaction Prompt Popup -->
+    <div id="zone-interaction-prompt" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 hidden pointer-events-auto">
+        <button id="zone-action-btn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-2xl shadow-2xl border border-blue-300 flex items-center gap-2 animate-bounce">
+            <i id="zone-action-icon" class="fa-solid fa-building"></i>
+            <span id="zone-action-text">Enter Zone</span>
+        </button>
+    </div>
 
-        <!-- TAB 1: HOME / LOBBY (CUSTOM PLAN & DRILLS) -->
-        <div id="view-lobby" class="space-y-4">
-            
-            <!-- Question Drill Logger with Token Rewards -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
-                        <i class="fa-solid fa-fire text-amber-400"></i> Question Practice Drills
-                    </h3>
-                    <span class="text-[10px] bg-amber-950 border border-amber-600/40 text-amber-300 px-2 py-0.5 rounded-full font-bold">
-                        +10 XP & +2 Tokens / Q
-                    </span>
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
-                        <div class="text-[10px] font-bold text-blue-400 uppercase">Maths</div>
-                        <div id="q-maths-count" class="text-base font-bold code-font my-1 text-white">0</div>
-                        <div class="flex gap-1">
-                            <button onclick="addQ('maths', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
-                            <button onclick="addQ('maths', 1)" class="flex-1 bg-blue-600 text-xs py-1 rounded font-bold hover:bg-blue-500">+</button>
-                        </div>
-                    </div>
-                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
-                        <div class="text-[10px] font-bold text-indigo-400 uppercase">Physics</div>
-                        <div id="q-physics-count" class="text-base font-bold code-font my-1 text-white">0</div>
-                        <div class="flex gap-1">
-                            <button onclick="addQ('physics', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
-                            <button onclick="addQ('physics', 1)" class="flex-1 bg-indigo-600 text-xs py-1 rounded font-bold hover:bg-indigo-500">+</button>
-                        </div>
-                    </div>
-                    <div class="bg-slate-800 p-2.5 rounded-xl text-center border border-slate-700/50">
-                        <div class="text-[10px] font-bold text-purple-400 uppercase">Chem</div>
-                        <div id="q-chem-count" class="text-base font-bold code-font my-1 text-white">0</div>
-                        <div class="flex gap-1">
-                            <button onclick="addQ('chem', -1)" class="flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
-                            <button onclick="addQ('chem', 1)" class="flex-1 bg-purple-600 text-xs py-1 rounded font-bold hover:bg-purple-500">+</button>
-                        </div>
-                    </div>
-                </div>
+    <!-- On-Screen Touch Controls (Virtual Movement D-Pad for Mobile) -->
+    <div class="fixed bottom-4 left-4 z-30 flex flex-col items-center gap-1 opacity-80 sm:opacity-90">
+        <button ontouchstart="startMove('up')" ontouchend="stopMove()" onmousedown="startMove('up')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
+            <i class="fa-solid fa-arrow-up"></i>
+        </button>
+        <div class="flex gap-2">
+            <button ontouchstart="startMove('left')" ontouchend="stopMove()" onmousedown="startMove('left')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button ontouchstart="startMove('down')" ontouchend="stopMove()" onmousedown="startMove('down')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
+                <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button ontouchstart="startMove('right')" ontouchend="stopMove()" onmousedown="startMove('right')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL OVERLAY 1: QUEST BOARD & SPRINT PLANNER (Zone 1) -->
+    <div id="modal-quests" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="text-sm font-bold text-blue-400 flex items-center gap-2">
+                    <i class="fa-solid fa-scroll text-amber-400"></i> Central Quest Board & Planner
+                </h2>
+                <button onclick="closeZoneModal('quests')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
 
             <!-- HOME SCREEN PLAN CONTAINER -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+            <div class="space-y-3">
                 
-                <!-- IF NO PLAN CREATED -->
+                <!-- IF NO PLAN CREATED: INLINE PLAN BUILDER + AI GEMINI PROMPT ASSISTANT -->
                 <div id="home-plan-builder" class="space-y-4">
                     <div class="text-center py-2 space-y-1">
-                        <div class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto text-lg">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </div>
-                        <h3 class="text-sm font-bold text-white">Create Daily or Weekly Sprint</h3>
-                        <p class="text-xs text-slate-400">Design your plan manually or use Gemini AI to generate one instantly!</p>
+                        <h3 class="text-xs font-bold text-white">Create Daily or Weekly Sprint</h3>
+                        <p class="text-[11px] text-slate-400">Design your plan manually or use Gemini AI to generate one instantly!</p>
                     </div>
 
-                    <!-- AI GEMINI ASSISTANT -->
+                    <!-- AI GEMINI PROMPT GENERATOR ASSISTANT -->
                     <div class="bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/40 rounded-xl p-3 space-y-2">
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold text-blue-300 flex items-center gap-1.5">
@@ -165,12 +157,12 @@
                                 <i class="fa-solid fa-copy"></i> Copy Prompt
                             </button>
                         </div>
-                        <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini, then paste Gemini's JSON response below!</p>
+                        <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini to structure your schedule, then paste Gemini's JSON response below!</p>
                         
-                        <textarea id="ai-json-import-input" rows="2" placeholder="Paste Gemini's JSON response here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
+                        <textarea id="ai-json-import-input" rows="2" placeholder="Paste Gemini's structured response JSON here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
                         
                         <button onclick="importAIPlanJSON()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 shadow">
-                            <i class="fa-solid fa-file-import"></i> Auto-Fill Plan from Gemini
+                            <i class="fa-solid fa-file-import"></i> Auto-Fill Plan from Gemini Output
                         </button>
                     </div>
 
@@ -196,7 +188,7 @@
 
                         <div class="space-y-2">
                             <label class="text-[10px] font-bold uppercase text-slate-400">Sprint Task Items</label>
-                            <div id="home-builder-tasks" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+                            <div id="home-builder-tasks" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
                             <button onclick="addHomeBuilderTaskRow()" class="w-full py-2 bg-slate-800/80 border border-dashed border-slate-700 rounded-xl text-xs font-bold text-slate-300 hover:border-blue-500 transition">
                                 + Add Task Item
                             </button>
@@ -208,7 +200,7 @@
                     </div>
                 </div>
 
-                <!-- IF PLAN IS ACTIVE -->
+                <!-- IF PLAN IS ACTIVE: CHECKLIST DASHBOARD -->
                 <div id="home-active-plan" class="hidden space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
@@ -216,7 +208,7 @@
                         </h3>
                         <div class="flex gap-1.5">
                             <button onclick="publishCurrentPlanAsChallenge()" class="text-[11px] bg-amber-600 hover:bg-amber-500 px-2.5 py-1 rounded-xl font-bold text-white flex items-center gap-1 shadow">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> Share to Lobby
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Share to World Market
                             </button>
                             <button onclick="resetHomePlan()" class="text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-xl font-bold text-slate-300 flex items-center gap-1">
                                 <i class="fa-solid fa-rotate-left"></i> Reset
@@ -241,7 +233,7 @@
                     <div class="bg-slate-800/50 border border-slate-700/60 p-2.5 rounded-xl space-y-2">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">Add Single Task (Unique Only)</div>
                         <div class="flex gap-2">
-                            <input type="text" id="add-active-task-title" placeholder="New unique task title..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            <input type="text" id="add-active-task-title" placeholder="New unique task description..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
                             <input type="number" id="add-active-task-xp" value="200" placeholder="XP" class="w-16 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
                             <button onclick="addTaskToActivePlan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 rounded-lg shadow flex items-center gap-1">
                                 <i class="fa-solid fa-plus"></i> Add
@@ -249,133 +241,138 @@
                         </div>
                     </div>
 
-                    <div id="tasks-list" class="space-y-2"></div>
+                    <div id="tasks-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
 
             </div>
         </div>
+    </div>
 
-        <!-- TAB 2: MARKETPLACE / SHOP (BUY COSMETICS) -->
-        <div id="view-shop" class="hidden space-y-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-store text-amber-400"></i> Item Marketplace
-                    </h2>
-                    <span class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 code-font">
-                        <i class="fa-solid fa-coins text-amber-400"></i>
-                        <span id="shop-token-count">0</span> Tokens
-                    </span>
-                </div>
-                <p class="text-[11px] text-slate-400">Spend Tokens earned from practice drills & fast task completions to unlock exclusive cosmetic titles and profile borders!</p>
-                
-                <div id="shop-items-grid" class="grid grid-cols-1 gap-3">
-                    <!-- Dynamic Shop Items loaded via JS -->
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: FIND & SHARE CHALLENGES -->
-        <div id="view-challenges" class="hidden space-y-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-trophy text-amber-400"></i> Lobby Challenge Market
-                    </h2>
-                    <button onclick="resetHomePlan(); switchView('lobby');" class="text-xs bg-blue-600 hover:bg-blue-500 font-bold px-3 py-1.5 rounded-xl text-white">
-                        + Build Custom Plan
-                    </button>
-                </div>
-                <p class="text-[11px] text-slate-400">Browse customized study plans uploaded by players in this lobby. Click <b>Follow Challenge</b> to load a plan into your personal tracker!</p>
-                
-                <div id="challenges-feed" class="space-y-3">
-                    <div class="text-xs text-slate-500 text-center py-4">Loading lobby challenges...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 4: FIND PLAYERS -->
-        <div id="view-players" class="hidden space-y-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-users text-emerald-400"></i> Active Players Directory
-                    </h2>
-                    <span id="lobby-online-count" class="text-[10px] bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold">0/10 Players</span>
-                </div>
-
-                <div id="players-list-container" class="space-y-2">
-                    <div class="text-xs text-slate-500 text-center py-4">Locating players in lobby...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 5: BATTLE COMPARE -->
-        <div id="view-battle" class="hidden space-y-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
-                <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-swords text-rose-400"></i> Live Lobby Battle Leaderboard
+    <!-- MODAL OVERLAY 2: PRACTICE DRILLS (Zone 2) -->
+    <div id="modal-practice" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-bullseye text-rose-400"></i> Speed Practice Grounds
                 </h2>
-                
-                <!-- My Stats Card -->
-                <div id="battle-my-card" class="bg-slate-800/90 border-2 border-blue-500 rounded-xl p-3 shadow-md">
-                    <div class="flex justify-between items-center mb-1">
-                        <div class="flex items-center gap-1.5">
-                            <span id="battle-my-badge" class="text-[10px] bg-blue-950 border border-blue-500 text-blue-300 px-1.5 py-0.5 rounded font-bold">Novice</span>
-                            <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
-                        </div>
-                        <span id="battle-my-xp" class="text-lg font-black text-white code-font">0 XP</span>
+                <button onclick="closeZoneModal('practice')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            
+            <p class="text-xs text-slate-400">Log your solved practice problems to launch elemental 3D spell strikes at the world boss!</p>
+
+            <div class="grid grid-cols-1 gap-2.5">
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-bold text-blue-400 uppercase">Maths Drills</div>
+                        <div id="q-maths-count" class="text-base font-bold code-font text-white">0 PYQs</div>
                     </div>
-                    <div class="text-xs text-slate-400 flex justify-between">
-                        <span>Boss Damage: <b id="battle-my-damage" class="text-rose-400">0 HP</b></span>
-                        <span>Questions Solved: <b id="battle-my-qs" class="text-emerald-400">0</b></span>
+                    <div class="flex gap-1.5">
+                        <button onclick="addQ('maths', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('maths', 1)" class="w-8 h-8 bg-blue-600 text-xs rounded-lg font-bold hover:bg-blue-500">+</button>
                     </div>
                 </div>
 
-                <!-- Opponents Ranking Cards -->
-                <div id="battle-rivals-container" class="space-y-2">
-                    <div class="text-xs text-slate-500 text-center py-4">No opponents detected in lobby...</div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-bold text-indigo-400 uppercase">Physics Drills</div>
+                        <div id="q-physics-count" class="text-base font-bold code-font text-white">0 PYQs</div>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="addQ('physics', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('physics', 1)" class="w-8 h-8 bg-indigo-600 text-xs rounded-lg font-bold hover:bg-indigo-500">+</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-bold text-purple-400 uppercase">Chem Drills</div>
+                        <div id="q-chem-count" class="text-base font-bold code-font text-white">0 PYQs</div>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="addQ('chem', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('chem', 1)" class="w-8 h-8 bg-purple-600 text-xs rounded-lg font-bold hover:bg-purple-500">+</button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-    </main>
+    <!-- MODAL OVERLAY 3: MARKETPLACE BAZAAR (Zone 3) -->
+    <div id="modal-shop" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div>
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-store"></i> Cosmetics Bazaar
+                    </h2>
+                    <p class="text-[11px] text-slate-400">Unlock titles, badges, and colored names!</p>
+                </div>
+                <button onclick="closeZoneModal('shop')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
 
-    <!-- Bottom Gaming Navigation Bar -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-40">
-        <div class="max-w-lg mx-auto grid grid-cols-5 text-center py-2">
-            <button onclick="switchView('lobby')" id="nav-lobby" class="text-blue-400 flex flex-col items-center gap-1 transition">
-                <i class="fa-solid fa-shield-halved text-base"></i>
-                <span class="text-[10px] font-bold">Home</span>
-            </button>
-            <button onclick="switchView('shop')" id="nav-shop" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
-                <i class="fa-solid fa-store text-base"></i>
-                <span class="text-[10px] font-bold">Market</span>
-            </button>
-            <button onclick="switchView('challenges')" id="nav-challenges" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
-                <i class="fa-solid fa-trophy text-base"></i>
-                <span class="text-[10px] font-bold">Challenges</span>
-            </button>
-            <button onclick="switchView('players')" id="nav-players" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
-                <i class="fa-solid fa-users text-base"></i>
-                <span class="text-[10px] font-bold">Players</span>
-            </button>
-            <button onclick="switchView('battle')" id="nav-battle" class="text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
-                <i class="fa-solid fa-swords text-base"></i>
-                <span class="text-[10px] font-bold">Compare</span>
-            </button>
+            <div class="text-xs bg-amber-950/80 border border-amber-500/50 p-2 rounded-xl text-amber-300 font-bold flex justify-between items-center">
+                <span>Token Balance:</span>
+                <span id="shop-balance-display" class="code-font text-sm">0 Tokens</span>
+            </div>
+
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Player Titles</h3>
+                    <div class="grid grid-cols-1 gap-2" id="shop-titles-list"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">World Badges</h3>
+                    <div class="grid grid-cols-2 gap-2" id="shop-badges-list"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Name Glow Colors</h3>
+                    <div class="grid grid-cols-2 gap-2" id="shop-colors-list"></div>
+                </div>
+            </div>
         </div>
-    </nav>
+    </div>
 
-    <!-- Modal: Profile & Lobby Selection -->
+    <!-- MODAL OVERLAY 4: HALL OF FAME / RANKINGS (Zone 4) -->
+    <div id="modal-hall" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="text-sm font-bold text-rose-400 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-400"></i> Global Hall of Fame
+                </h2>
+                <button onclick="closeZoneModal('hall')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+
+            <!-- My Stats Card -->
+            <div id="battle-my-card" class="bg-slate-800/90 border-2 border-blue-500 rounded-xl p-3 shadow-md">
+                <div class="flex justify-between items-center mb-1">
+                    <div class="flex items-center gap-1.5">
+                        <span id="battle-my-badge"></span>
+                        <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
+                    </div>
+                    <span id="battle-my-xp" class="text-base font-black text-white code-font">0 XP</span>
+                </div>
+                <div id="battle-my-title-display" class="text-[10px] text-amber-400 font-bold mb-1 hidden"></div>
+                <div class="text-xs text-slate-400 flex justify-between">
+                    <span>Boss Damage: <b id="battle-my-damage" class="text-rose-400">0 HP</b></span>
+                    <span>Questions Solved: <b id="battle-my-qs" class="text-emerald-400">0</b></span>
+                </div>
+            </div>
+
+            <div id="battle-rivals-container" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Profile Setup -->
     <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
             <div class="text-center">
                 <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
                     <i class="fa-solid fa-user-astronaut"></i>
                 </div>
-                <h3 class="text-base font-bold text-white">Player & Lobby Config</h3>
-                <p class="text-xs text-slate-400">Set your player handle and connect to a lobby room (Max 10 players/lobby).</p>
+                <h3 class="text-base font-bold text-white">3D World Setup</h3>
+                <p class="text-xs text-slate-400">Choose your hero handle to enter the shared 3D arena.</p>
             </div>
 
             <div>
@@ -383,40 +380,25 @@
                 <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex_JEE" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
             </div>
 
-            <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Lobby Room Name</label>
-                <input type="text" id="login-lobby-input" placeholder="e.g. main-arena, lobby-alpha, squad-1" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-            </div>
-
-            <button onclick="saveProfileAndLobby()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg">Connect to Lobby</button>
+            <button onclick="saveProfileAndLobby()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg">Spawn into 3D World</button>
         </div>
     </div>
 
-    <!-- Modal: Edit Task -->
-    <div id="edit-task-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <!-- Custom Alert / Confirm Dialog Modal -->
+    <div id="app-dialog-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-blue-400"></i> Edit Task Item
-                </h3>
-                <button onclick="closeEditTaskModal()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-3">
+                <div id="dialog-icon-bg" class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-lg shrink-0">
+                    <i id="dialog-icon" class="fa-solid fa-circle-info"></i>
+                </div>
+                <div>
+                    <h3 id="dialog-title" class="text-sm font-bold text-white">Notice</h3>
+                    <p id="dialog-message" class="text-xs text-slate-300 mt-1 leading-relaxed whitespace-pre-line"></p>
+                </div>
             </div>
-
-            <input type="hidden" id="edit-task-id">
-
-            <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Task Title</label>
-                <input type="text" id="edit-task-title-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-            </div>
-
-            <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Task XP</label>
-                <input type="number" id="edit-task-xp-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-            </div>
-
-            <div class="flex gap-2">
-                <button onclick="closeEditTaskModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-xl">Cancel</button>
-                <button onclick="saveTaskEdits()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 rounded-xl shadow">Save Changes</button>
+            <div id="dialog-actions" class="flex justify-end gap-2 pt-2">
+                <button id="dialog-btn-cancel" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-2 rounded-xl">Cancel</button>
+                <button id="dialog-btn-ok" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow">OK</button>
             </div>
         </div>
     </div>
@@ -436,7 +418,61 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const LOBBY_MAX_CAPACITY = 10;
+        const SINGLE_GLOBAL_WORLD_ID = "jee-3d-world-v1";
+
+        function showAlert(message, title = "Notice") {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-message').innerText = message;
+            document.getElementById('dialog-icon').className = "fa-solid fa-circle-info text-blue-400";
+            document.getElementById('dialog-btn-cancel').classList.add('hidden');
+            
+            const okBtn = document.getElementById('dialog-btn-ok');
+            okBtn.onclick = () => {
+                document.getElementById('app-dialog-modal').classList.add('hidden');
+            };
+            document.getElementById('app-dialog-modal').classList.remove('hidden');
+        }
+
+        function showConfirm(message, title = "Confirm", onConfirm) {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-message').innerText = message;
+            document.getElementById('dialog-icon').className = "fa-solid fa-circle-question text-amber-400";
+            
+            const cancelBtn = document.getElementById('dialog-btn-cancel');
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.onclick = () => {
+                document.getElementById('app-dialog-modal').classList.add('hidden');
+            };
+
+            const okBtn = document.getElementById('dialog-btn-ok');
+            okBtn.onclick = () => {
+                document.getElementById('app-dialog-modal').classList.add('hidden');
+                if (typeof onConfirm === 'function') onConfirm();
+            };
+            document.getElementById('app-dialog-modal').classList.remove('hidden');
+        }
+
+        // SHOP ITEMS DATABASE
+        const MARKET_ITEMS = {
+            titles: [
+                { id: "title_quantum", name: "Quantum Prodigy", cost: 100 },
+                { id: "title_iit", name: "IIT Bombay Bound 🎓", cost: 250 },
+                { id: "title_destroyer", name: "JEE Destroyer ⚡", cost: 500 },
+                { id: "title_infinite", name: "Infinite Solver ♾️", cost: 1000 }
+            ],
+            badges: [
+                { id: "badge_speed", name: "Speedster ⚡", icon: "fa-bolt text-amber-400", cost: 150 },
+                { id: "badge_king", name: "Sovereign 👑", icon: "fa-crown text-yellow-400", cost: 300 },
+                { id: "badge_flame", name: "Flame 🔥", icon: "fa-fire text-rose-500", cost: 450 },
+                { id: "badge_shield", name: "Defender 🛡️", icon: "fa-shield-halved text-blue-400", cost: 600 }
+            ],
+            colors: [
+                { id: "color_emerald", name: "Emerald Green", class: "text-emerald-400", cost: 100 },
+                { id: "color_gold", name: "Gold Master", class: "text-amber-400 font-extrabold", cost: 250 },
+                { id: "color_rose", name: "Rose Flame", class: "text-rose-400 font-extrabold", cost: 400 },
+                { id: "color_cyan", name: "Cyber Cyan", class: "text-cyan-400 font-extrabold", cost: 600 }
+            ]
+        };
 
         let myUserId = localStorage.getItem('jee_my_user_id');
         if (!myUserId) {
@@ -445,31 +481,51 @@
         }
 
         let myUserName = localStorage.getItem('jee_my_user_name') || '';
-        let currentLobby = localStorage.getItem('jee_current_lobby') || 'main-arena';
-
         let myActivePlan = JSON.parse(localStorage.getItem('jee_active_plan')) || null;
+
+        // Player Physical World Position (3D Coordinates: X, Y, Z)
+        let playerPos = { x: 0, y: 0.8, z: 12 };
+        let activeKeys = {};
+        let activeTouchMove = null;
 
         let myData = { 
             completedTasks: {},
             quitTasks: {},
             questions: { maths: 0, physics: 0, chem: 0 }, 
-            name: myUserName,
-            tokens: 0,
-            equippedBorder: 'none',
-            equippedBadge: 'Novice'
+            tokens: 50,
+            inventory: [],
+            equippedTitle: "",
+            equippedBadge: "",
+            equippedColor: "",
+            x: playerPos.x,
+            z: playerPos.z,
+            name: myUserName 
         };
 
         let lobbyPlayers = {};
-        let lobbyChallenges = {};
+        let otherPlayerMeshes = {};
 
-        // Marketplace Catalog Items
-        const SHOP_ITEMS = [
-            { id: 'bdg_warrior', type: 'badge', title: '🔥 JEE Warrior', price: 50, desc: 'Display title for active study grinders.' },
-            { id: 'bdg_rank1', type: 'badge', title: '👑 AIR #1 Mindset', price: 150, desc: 'Show off elite rank motivation.' },
-            { id: 'bdg_wizard', type: 'badge', title: '⚡ Physics Wizard', price: 100, desc: 'Specialist badge for problem solvers.' },
-            { id: 'bdr_gold', type: 'border', title: '🌟 Golden Aura Border', price: 100, styleClass: 'border-gold', desc: 'Shimmering gold border for your lobby cards.' },
-            { id: 'bdr_neon', type: 'border', title: '💎 Cyber Neon Border', price: 150, styleClass: 'border-neon', desc: 'Glowing cyber neon outline.' },
-            { id: 'bdr_fire', type: 'border', title: '🔥 Flame Border', price: 200, styleClass: 'border-fire', desc: 'Fiery aura for top competitors.' }
+        // Three.js 3D Engine & Movable Camera Variables
+        let scene, camera, renderer;
+        let playerMesh, bossMesh, bossEyesMesh;
+        let activeZonePrompt = null;
+        let spellParticles = [];
+
+        // MOVABLE CAMERA PERSPECTIVE STATE
+        let cameraYaw = Math.PI;       // Horizontal Orbit Angle around Hero (default behind hero)
+        let cameraPitch = 0.6;         // Vertical Tilt Angle (radians, clamped)
+        let cameraDistance = 15;       // Distance from hero
+        let isPointerDragging = false;
+        let previousPointerPos = { x: 0, y: 0 };
+        let touchStartPinchDist = 0;
+
+        // 3D Open World Map Zone Definitions
+        const WORLD_ZONES = [
+            { id: "boss", name: "Iron Colossus Boss Arena", x: 0, z: 0, radius: 6, icon: "fa-skull", color: "#e11d48" },
+            { id: "quests", name: "Central Quest Board & Planner", x: -16, z: -16, radius: 4.5, icon: "fa-scroll", color: "#3b82f6" },
+            { id: "practice", name: "Speed Practice Grounds", x: 16, z: -16, radius: 4.5, icon: "fa-bullseye", color: "#f59e0b" },
+            { id: "shop", name: "Cosmetics Bazaar", x: -16, z: 16, radius: 4.5, icon: "fa-store", color: "#10b981" },
+            { id: "hall", name: "Global Hall of Fame", x: 16, z: 16, radius: 4.5, icon: "fa-trophy", color: "#a855f7" }
         ];
 
         window.onload = function() {
@@ -480,8 +536,9 @@
             }
 
             loadLocalMyData();
-            monitorConnectionState();
             setupFirebaseSync();
+            init3DEngine();
+            setupControls();
 
             if (!myActivePlan) {
                 initHomeBuilderRows();
@@ -489,162 +546,87 @@
                 renderActivePlan();
             }
 
-            renderShopCatalog();
-            startDeadlineTimer();
+            renderShop();
         };
-
-        function triggerCongratulations(title, message) {
-            // Confetti effect
-            if (window.confetti) {
-                confetti({
-                    particleCount: 50,
-                    spread: 60,
-                    origin: { y: 0.8 }
-                });
-            }
-
-            // Show Toast Banner
-            const banner = document.getElementById('toast-banner');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-message').innerText = message;
-
-            banner.classList.remove('hidden');
-            banner.classList.add('flex');
-
-            setTimeout(() => {
-                banner.classList.add('hidden');
-                banner.classList.remove('flex');
-            }, 3500);
-        }
-
-        function monitorConnectionState() {
-            db.ref('.info/connected').on('value', (snap) => {
-                const statusEl = document.getElementById('sync-status');
-                if (snap.val() === true) {
-                    statusEl.className = "text-xs text-emerald-400 font-semibold";
-                    statusEl.innerHTML = `<i class="fa-solid fa-cloud"></i>`;
-                    hideConnError();
-                } else {
-                    statusEl.className = "text-xs text-amber-400 font-semibold";
-                    statusEl.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i>`;
-                }
-            });
-        }
-
-        function showConnError(msg) {
-            document.getElementById('conn-error-text').innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ${msg}`;
-            document.getElementById('conn-error-banner').classList.remove('hidden');
-        }
-
-        function hideConnError() {
-            document.getElementById('conn-error-banner').classList.add('hidden');
-        }
 
         function openLoginModal() {
             document.getElementById('login-name-input').value = myUserName;
-            document.getElementById('login-lobby-input').value = currentLobby;
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
         function saveProfileAndLobby() {
             const nameIn = document.getElementById('login-name-input').value.trim();
-            const lobbyIn = document.getElementById('login-lobby-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'main-arena';
-
             if (!nameIn) {
-                alert("Please enter a player handle!");
+                showAlert("Please enter a player handle!", "Name Required");
                 return;
             }
-
             myUserName = nameIn;
             myData.name = myUserName;
             localStorage.setItem('jee_my_user_name', myUserName);
 
-            if (lobbyIn !== currentLobby) {
-                db.ref(`lobbies/${lobbyIn}/players`).once('value', (snap) => {
-                    const players = snap.val() || {};
-                    const count = Object.keys(players).length;
-                    if (count >= LOBBY_MAX_CAPACITY && !players[myUserId]) {
-                        alert(`Lobby "${lobbyIn}" is full (${LOBBY_MAX_CAPACITY}/${LOBBY_MAX_CAPACITY} players). Try another lobby name!`);
-                        return;
-                    }
-
-                    db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().cancel();
-                    db.ref(`lobbies/${currentLobby}`).off();
-                    currentLobby = lobbyIn;
-                    localStorage.setItem('jee_current_lobby', currentLobby);
-                    
-                    updateNameDisplay();
-                    document.getElementById('login-modal').classList.add('hidden');
-                    saveLocalMyData();
-                    setupFirebaseSync();
-                });
-            } else {
-                updateNameDisplay();
-                document.getElementById('login-modal').classList.add('hidden');
-                saveLocalMyData();
-                pushMyData();
-            }
+            updateNameDisplay();
+            document.getElementById('login-modal').classList.add('hidden');
+            saveLocalMyData();
+            pushMyData();
         }
 
         function updateNameDisplay() {
-            document.getElementById('my-name-tag').innerText = myUserName || 'Guest';
-            document.getElementById('battle-my-name').innerText = `YOU (${myUserName || 'Device'})`;
-            document.getElementById('active-lobby-tag').innerText = currentLobby;
+            document.getElementById('my-name-tag').innerText = myUserName || 'Hero';
+            document.getElementById('battle-my-name').innerText = `YOU (${myUserName || 'Hero'})`;
         }
 
         function setupFirebaseSync() {
-            const lobbyRef = db.ref(`lobbies/${currentLobby}`);
+            const worldRef = db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}`);
 
-            lobbyRef.on('value', (snapshot) => {
+            worldRef.on('value', (snapshot) => {
                 const val = snapshot.val() || {};
                 lobbyPlayers = val.players || {};
-                lobbyChallenges = val.challenges || {};
 
                 if (lobbyPlayers[myUserId]) {
                     myData.completedTasks = lobbyPlayers[myUserId].completedTasks || myData.completedTasks || {};
                     myData.quitTasks = lobbyPlayers[myUserId].quitTasks || myData.quitTasks || {};
                     myData.questions = lobbyPlayers[myUserId].questions || myData.questions;
-                    myData.tokens = lobbyPlayers[myUserId].tokens ?? myData.tokens ?? 0;
-                    myData.equippedBorder = lobbyPlayers[myUserId].equippedBorder || myData.equippedBorder || 'none';
-                    myData.equippedBadge = lobbyPlayers[myUserId].equippedBadge || myData.equippedBadge || 'Novice';
+                    myData.tokens = typeof lobbyPlayers[myUserId].tokens === 'number' ? lobbyPlayers[myUserId].tokens : (myData.tokens || 50);
+                    myData.inventory = lobbyPlayers[myUserId].inventory || myData.inventory || [];
+                    myData.equippedTitle = lobbyPlayers[myUserId].equippedTitle || myData.equippedTitle || "";
+                    myData.equippedBadge = lobbyPlayers[myUserId].equippedBadge || myData.equippedBadge || "";
+                    myData.equippedColor = lobbyPlayers[myUserId].equippedColor || myData.equippedColor || "";
                     saveLocalMyData();
                 } else {
                     pushMyData();
                 }
 
                 registerDisconnectCleanup();
+                syncOtherPlayer3DMeshes();
                 updateUI();
-                hideConnError();
-            }, (err) => {
-                showConnError(`Sync error: ${err.message}`);
             });
         }
 
         function registerDisconnectCleanup() {
-            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).onDisconnect().remove();
+            db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}/players/${myUserId}`).onDisconnect().remove();
         }
 
         function pushMyData() {
             myData.name = myUserName;
-            myData.activePlanTitle = myActivePlan ? myActivePlan.title : 'Custom Plan';
+            myData.x = parseFloat(playerPos.x.toFixed(2));
+            myData.z = parseFloat(playerPos.z.toFixed(2));
             myData.lastActive = Date.now();
-            db.ref(`lobbies/${currentLobby}/players/${myUserId}`).set(myData).catch(err => showConnError(err.message));
+            db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}/players/${myUserId}`).set(myData);
         }
 
         function saveLocalMyData() {
-            localStorage.setItem(`jee_data_${currentLobby}`, JSON.stringify(myData));
+            localStorage.setItem(`jee_data_${SINGLE_GLOBAL_WORLD_ID}`, JSON.stringify(myData));
         }
 
         function loadLocalMyData() {
-            const saved = localStorage.getItem(`jee_data_${currentLobby}`);
+            const saved = localStorage.getItem(`jee_data_${SINGLE_GLOBAL_WORLD_ID}`);
             if (saved) {
                 try { myData = JSON.parse(saved); } catch (e) {}
             }
             if (!myData.completedTasks) myData.completedTasks = {};
             if (!myData.quitTasks) myData.quitTasks = {};
-            if (myData.tokens === undefined) myData.tokens = 0;
-            if (!myData.equippedBorder) myData.equippedBorder = 'none';
-            if (!myData.equippedBadge) myData.equippedBadge = 'Novice';
+            if (typeof myData.tokens !== 'number') myData.tokens = 50;
+            if (!myData.inventory) myData.inventory = [];
         }
 
         function calculateXP(data) {
@@ -668,51 +650,52 @@
             const qTotal = (q.maths || 0) + (q.physics || 0) + (q.chem || 0);
             xp += (qTotal * 10);
 
-            const maxBossHP = Math.max(1000, totalPlanXP + (qTotal * 10));
+            return { xp, tasks, qTotal, totalPlanXP };
+        }
 
-            return { xp, tasks, qTotal, maxBossHP, totalPlanXP };
+        function calculateWorldBossStatus() {
+            let totalWorldDamage = 0;
+            let totalWorldMaxHP = 2000;
+
+            Object.keys(lobbyPlayers).forEach(id => {
+                const p = lobbyPlayers[id];
+                const stats = calculateXP(p);
+                totalWorldDamage += stats.xp;
+                totalWorldMaxHP += stats.totalPlanXP;
+            });
+
+            const bossHPLeft = Math.max(0, totalWorldMaxHP - totalWorldDamage);
+            return { bossHPLeft, totalWorldMaxHP, totalWorldDamage };
         }
 
         function updateUI() {
             const myStats = calculateXP(myData);
 
-            // Tokens Update
-            document.getElementById('header-token-count').innerText = (myData.tokens || 0).toLocaleString();
-            document.getElementById('shop-token-count').innerText = (myData.tokens || 0).toLocaleString();
+            document.getElementById('my-tokens-count').innerText = myData.tokens || 0;
+            document.getElementById('shop-balance-display').innerText = `${myData.tokens || 0} Tokens`;
 
-            // BOSS HEALTH
-            const maxHP = myStats.maxBossHP;
-            const damageDone = Math.min(myStats.xp, maxHP);
-            const bossHPLeft = Math.max(0, maxHP - damageDone);
+            const bossStatus = calculateWorldBossStatus();
+            const maxHP = bossStatus.totalWorldMaxHP;
+            const bossHPLeft = bossStatus.bossHPLeft;
             const hpPercent = maxHP > 0 ? (bossHPLeft / maxHP) * 100 : 100;
 
             if (bossHPLeft <= 0 && maxHP > 0) {
-                document.getElementById('boss-title-tag').innerText = "SOLO BOSS DEFEATED! 🏆";
-                document.getElementById('boss-icon').className = "fa-solid fa-trophy text-amber-400 animate-bounce";
-                document.getElementById('boss-hp-text').innerText = `0 / ${maxHP.toLocaleString()} HP (DEFEATED)`;
+                document.getElementById('boss-title-tag').innerText = "WORLD BOSS SLAIN! 🏆";
+                document.getElementById('boss-hp-text').innerText = `0 / ${maxHP.toLocaleString()} HP`;
             } else {
-                document.getElementById('boss-title-tag').innerText = "SOLO BOSS HEALTH";
-                document.getElementById('boss-icon').className = "fa-solid fa-skull text-rose-500 animate-pulse";
+                document.getElementById('boss-title-tag').innerText = "WORLD BOSS: IRON COLOSSUS";
                 document.getElementById('boss-hp-text').innerText = `${bossHPLeft.toLocaleString()} / ${maxHP.toLocaleString()} HP`;
             }
             
             document.getElementById('boss-hp-fill').style.width = `${hpPercent}%`;
-            document.getElementById('boss-mode-badge').innerText = myActivePlan ? (myActivePlan.type || 'daily') : 'daily';
 
-            // Question Counters
-            document.getElementById('q-maths-count').innerText = myData.questions?.maths || 0;
-            document.getElementById('q-physics-count').innerText = myData.questions?.physics || 0;
-            document.getElementById('q-chem-count').innerText = myData.questions?.chem || 0;
+            document.getElementById('q-maths-count').innerText = `${myData.questions?.maths || 0} PYQs`;
+            document.getElementById('q-physics-count').innerText = `${myData.questions?.physics || 0} PYQs`;
+            document.getElementById('q-chem-count').innerText = `${myData.questions?.chem || 0} PYQs`;
 
-            // Battle Personal Card
             document.getElementById('battle-my-xp').innerText = `${myStats.xp} XP`;
-            document.getElementById('battle-my-damage').innerText = `${damageDone} HP`;
+            document.getElementById('battle-my-damage').innerText = `${myStats.xp} HP`;
             document.getElementById('battle-my-qs').innerText = myStats.qTotal;
-            document.getElementById('battle-my-badge').innerText = myData.equippedBadge || 'Novice';
-
-            // Apply equipped border to my battle card
-            const myCard = document.getElementById('battle-my-card');
-            myCard.className = `bg-slate-800/90 border-2 rounded-xl p-3 shadow-md ${myData.equippedBorder !== 'none' ? myData.equippedBorder : 'border-blue-500'}`;
 
             if (myActivePlan) {
                 document.getElementById('home-plan-builder').classList.add('hidden');
@@ -723,22 +706,444 @@
                 document.getElementById('home-active-plan').classList.add('hidden');
             }
 
-            renderChallengesFeed();
-            renderPlayersDirectory();
+            renderShop();
             renderBattleRivals();
-            renderShopCatalog();
+        }
+
+        function triggerCongratulationsToast(message) {
+            const toast = document.getElementById('congratulations-toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2500);
+        }
+
+        function openZoneModal(zoneId) {
+            if (zoneId === 'boss') {
+                spawn3DSpellParticles(0, 3, 0, 0xe11d48);
+                triggerCongratulationsToast("Attacked World Boss in 3D Arena!");
+                return;
+            }
+
+            const el = document.getElementById(`modal-${zoneId}`);
+            if (el) el.classList.remove('hidden');
+        }
+
+        function closeZoneModal(zoneId) {
+            const el = document.getElementById(`modal-${zoneId}`);
+            if (el) el.classList.add('hidden');
+        }
+
+        function resetCameraView() {
+            cameraYaw = Math.PI;
+            cameraPitch = 0.6;
+            cameraDistance = 15;
+        }
+
+        // --- THREE.JS 3D ENGINE INITIALIZATION ---
+        function init3DEngine() {
+            const container = document.getElementById('webgl-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+            scene.fog = new THREE.FogExp2(0x020617, 0.02);
+
+            // Camera (Perspective 3D)
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x38bdf8, 0.5);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            sunLight.position.set(30, 50, 20);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            scene.add(sunLight);
+
+            // Ground World Plane
+            const groundGeo = new THREE.PlaneGeometry(80, 80);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // World Grid Helper
+            const gridHelper = new THREE.GridHelper(80, 40, 0x3b82f6, 0x1e293b);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+
+            // Build 3D Hero Mesh Avatar
+            const heroGroup = new THREE.Group();
+            
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.4, 0.2, 1.2, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.3, roughness: 0.2 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.6;
+            body.castShadow = true;
+            heroGroup.add(body);
+
+            // Helmet
+            const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, metalness: 0.5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.35;
+            head.castShadow = true;
+            heroGroup.add(head);
+
+            // Visor (Front face marker)
+            const visorGeo = new THREE.BoxGeometry(0.3, 0.1, 0.2);
+            const visorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.position.set(0, 1.35, -0.25);
+            heroGroup.add(visor);
+
+            playerMesh = heroGroup;
+            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+            scene.add(playerMesh);
+
+            // Build 3D World Boss (Iron Colossus)
+            const bossGroup = new THREE.Group();
+            
+            const bossTorsoGeo = new THREE.BoxGeometry(2.5, 3.5, 2);
+            const bossTorsoMat = new THREE.MeshStandardMaterial({ color: 0x9f1239, metalness: 0.7, roughness: 0.3 });
+            const bossTorso = new THREE.Mesh(bossTorsoGeo, bossTorsoMat);
+            bossTorso.position.y = 2.5;
+            bossTorso.castShadow = true;
+            bossGroup.add(bossTorso);
+
+            const bossHeadGeo = new THREE.BoxGeometry(1.5, 1.2, 1.2);
+            const bossHeadMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, metalness: 0.8 });
+            const bossHead = new THREE.Mesh(bossHeadGeo, bossHeadMat);
+            bossHead.position.y = 4.8;
+            bossHead.castShadow = true;
+            bossGroup.add(bossHead);
+
+            // Glowing Red Eyes
+            const eyeGeo = new THREE.BoxGeometry(1.2, 0.2, 0.2);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+            bossEyesMesh = new THREE.Mesh(eyeGeo, eyeMat);
+            bossEyesMesh.position.set(0, 4.8, 0.61);
+            bossGroup.add(bossEyesMesh);
+
+            // Boss Point Light
+            const bossLight = new THREE.PointLight(0xe11d48, 2, 15);
+            bossLight.position.set(0, 4, 0);
+            bossGroup.add(bossLight);
+
+            bossMesh = bossGroup;
+            bossMesh.position.set(0, 0, 0);
+            scene.add(bossMesh);
+
+            // Build 3D World Zone Structures
+            WORLD_ZONES.forEach(zone => {
+                if (zone.id === 'boss') return;
+
+                const zoneGroup = new THREE.Group();
+
+                // Pedestal Base
+                const baseGeo = new THREE.CylinderGeometry(zone.radius, zone.radius + 0.5, 0.3, 16);
+                const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+                const base = new THREE.Mesh(baseGeo, baseMat);
+                base.position.y = 0.15;
+                base.receiveShadow = true;
+                zoneGroup.add(base);
+
+                // Floating Glowing Orb/Crystal
+                const crystalGeo = new THREE.OctahedronGeometry(1.2, 0);
+                const crystalMat = new THREE.MeshStandardMaterial({ color: parseInt(zone.color.replace('#', '0x')), roughness: 0.1, metalness: 0.9, emissive: parseInt(zone.color.replace('#', '0x')), emissiveIntensity: 0.5 });
+                const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+                crystal.position.y = 2.5;
+                crystal.castShadow = true;
+                zoneGroup.add(crystal);
+
+                // Zone Point Light
+                const pLight = new THREE.PointLight(parseInt(zone.color.replace('#', '0x')), 1.5, 12);
+                pLight.position.set(0, 2.5, 0);
+                zoneGroup.add(pLight);
+
+                zoneGroup.position.set(zone.x, 0, zone.z);
+                scene.add(zoneGroup);
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            setupCameraDragControls(container);
+            requestAnimationFrame(animate3DLoop);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- MOVABLE CAMERA & CONTROLS SETUP ---
+        function setupCameraDragControls(container) {
+            // Mouse Drag & Touch Orbit Listeners
+            const onPointerDown = (e) => {
+                // Ignore drags starting over interactive buttons or modals
+                if (e.target.closest('button') || e.target.closest('#login-modal') || e.target.closest('.fixed')) return;
+                isPointerDragging = true;
+                previousPointerPos = {
+                    x: e.clientX || (e.touches && e.touches[0].clientX) || 0,
+                    y: e.clientY || (e.touches && e.touches[0].clientY) || 0
+                };
+            };
+
+            const onPointerMove = (e) => {
+                if (!isPointerDragging) return;
+
+                // Handle dual-touch pinch zoom
+                if (e.touches && e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    if (touchStartPinchDist > 0) {
+                        const delta = touchStartPinchDist - dist;
+                        cameraDistance = Math.max(5, Math.min(30, cameraDistance + delta * 0.05));
+                    }
+                    touchStartPinchDist = dist;
+                    return;
+                }
+
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+
+                const deltaX = clientX - previousPointerPos.x;
+                const deltaY = clientY - previousPointerPos.y;
+
+                // Orbit Horizontal Yaw
+                cameraYaw -= deltaX * 0.006;
+                // Orbit Vertical Pitch (Clamped)
+                cameraPitch += deltaY * 0.005;
+                cameraPitch = Math.max(0.15, Math.min(Math.PI / 2 - 0.05, cameraPitch));
+
+                previousPointerPos = { x: clientX, y: clientY };
+            };
+
+            const onPointerUp = () => {
+                isPointerDragging = false;
+                touchStartPinchDist = 0;
+            };
+
+            // Mouse Wheel Zoom Listener
+            const onWheel = (e) => {
+                cameraDistance += e.deltaY * 0.015;
+                cameraDistance = Math.max(5, Math.min(30, cameraDistance));
+            };
+
+            container.addEventListener('mousedown', onPointerDown);
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+
+            container.addEventListener('touchstart', onPointerDown, { passive: true });
+            window.addEventListener('touchmove', onPointerMove, { passive: true });
+            window.addEventListener('touchend', onPointerUp);
+
+            container.addEventListener('wheel', onWheel, { passive: true });
+        }
+
+        // Movement Key & Touch Control Handling
+        function setupControls() {
+            window.addEventListener('keydown', (e) => {
+                activeKeys[e.key.toLowerCase()] = true;
+            });
+            window.addEventListener('keyup', (e) => {
+                activeKeys[e.key.toLowerCase()] = false;
+            });
+        }
+
+        function startMove(dir) { activeTouchMove = dir; }
+        function stopMove() { activeTouchMove = null; }
+
+        // Sync 3D Avatars for Other Multiplayer Online Heroes
+        function syncOtherPlayer3DMeshes() {
+            if (!scene) return;
+
+            const playerIds = Object.keys(lobbyPlayers);
+            document.getElementById('sim-online-counter').innerText = `${playerIds.length} Online`;
+
+            // Remove disconnected player 3D meshes
+            Object.keys(otherPlayerMeshes).forEach(id => {
+                if (!lobbyPlayers[id]) {
+                    scene.remove(otherPlayerMeshes[id]);
+                    delete otherPlayerMeshes[id];
+                }
+            });
+
+            // Create/Update active 3D meshes
+            playerIds.forEach(id => {
+                if (id === myUserId) return;
+                const p = lobbyPlayers[id];
+
+                if (!otherPlayerMeshes[id]) {
+                    const heroGroup = new THREE.Group();
+                    const bodyGeo = new THREE.CylinderGeometry(0.4, 0.2, 1.2, 8);
+                    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x10b981 });
+                    const body = new THREE.Mesh(bodyGeo, bodyMat);
+                    body.position.y = 0.6;
+                    heroGroup.add(body);
+
+                    const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
+                    const headMat = new THREE.MeshStandardMaterial({ color: 0x34d399 });
+                    const head = new THREE.Mesh(headGeo, headMat);
+                    head.position.y = 1.35;
+                    heroGroup.add(head);
+
+                    otherPlayerMeshes[id] = heroGroup;
+                    scene.add(heroGroup);
+                }
+
+                otherPlayerMeshes[id].position.set(p.x || 0, 0.8, p.z || 0);
+            });
+        }
+
+        // Spawn 3D Spell Strike Particle FX
+        function spawn3DSpellParticles(x, y, z, colorHex) {
+            for (let i = 0; i < 20; i++) {
+                const pGeo = new THREE.SphereGeometry(0.15, 6, 6);
+                const pMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const pMesh = new THREE.Mesh(pGeo, pMat);
+                pMesh.position.set(x, y, z);
+
+                const vx = (Math.random() - 0.5) * 0.3;
+                const vy = (Math.random() - 0.5) * 0.3 + 0.2;
+                const vz = (Math.random() - 0.5) * 0.3;
+
+                spellParticles.push({ mesh: pMesh, vx, vy, vz, life: 1.0 });
+                scene.add(pMesh);
+            }
+        }
+
+        // 3D MAIN GAME LOOP
+        function animate3DLoop(time) {
+            const clockTime = time * 0.001;
+
+            // Camera Relative Movement Calculation
+            const moveSpeed = 0.18;
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (activeKeys['w'] || activeKeys['arrowup'] || activeTouchMove === 'up') { moveZ -= 1; }
+            if (activeKeys['s'] || activeKeys['arrowdown'] || activeTouchMove === 'down') { moveZ += 1; }
+            if (activeKeys['a'] || activeKeys['arrowleft'] || activeTouchMove === 'left') { moveX -= 1; }
+            if (activeKeys['d'] || activeKeys['arrowright'] || activeTouchMove === 'right') { moveX += 1; }
+
+            if (moveX !== 0 || moveZ !== 0) {
+                // Normalize input vector
+                const len = Math.hypot(moveX, moveZ);
+                moveX /= len;
+                moveZ /= len;
+
+                // Translate movement relative to current Camera Yaw angle
+                const sinY = Math.sin(cameraYaw);
+                const cosY = Math.cos(cameraYaw);
+
+                const worldMoveX = moveX * cosY - moveZ * sinY;
+                const worldMoveZ = moveX * sinY + moveZ * cosY;
+
+                playerPos.x += worldMoveX * moveSpeed;
+                playerPos.z += worldMoveZ * moveSpeed;
+
+                // Clamp World Map Bounds (-38 to +38 units)
+                playerPos.x = Math.max(-38, Math.min(38, playerPos.x));
+                playerPos.z = Math.max(-38, Math.min(38, playerPos.z));
+
+                // Turn Hero Mesh to Face Movement Direction
+                if (playerMesh) {
+                    const targetRotation = Math.atan2(worldMoveX, worldMoveZ);
+                    playerMesh.rotation.y = targetRotation;
+                    playerMesh.position.y = 0.8 + Math.sin(clockTime * 12) * 0.1;
+                }
+
+                if (Math.random() > 0.85) pushMyData();
+            } else if (playerMesh) {
+                playerMesh.position.y = 0.8;
+            }
+
+            if (playerMesh) {
+                playerMesh.position.set(playerPos.x, playerMesh.position.y, playerPos.z);
+            }
+
+            // --- CALCULATE MOVABLE CAMERA POSITION (ORBIT PERSPECTIVE) ---
+            const camOffsetX = cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
+            const camOffsetY = cameraDistance * Math.sin(cameraPitch);
+            const camOffsetZ = cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
+
+            camera.position.x = playerPos.x + camOffsetX;
+            camera.position.y = playerPos.y + camOffsetY;
+            camera.position.z = playerPos.z + camOffsetZ;
+
+            // Look directly at Hero position
+            camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
+
+            // Animate Boss Hovering
+            if (bossMesh) {
+                bossMesh.position.y = Math.sin(clockTime * 2) * 0.3;
+                bossMesh.rotation.y = Math.sin(clockTime * 0.5) * 0.2;
+            }
+
+            // Animate 3D Particles
+            for (let i = spellParticles.length - 1; i >= 0; i--) {
+                const p = spellParticles[i];
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                p.life -= 0.03;
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    spellParticles.splice(i, 1);
+                }
+            }
+
+            // Check Proximity to 3D World Zones
+            activeZonePrompt = null;
+            WORLD_ZONES.forEach(z => {
+                const dist = Math.hypot(playerPos.x - z.x, playerPos.z - z.z);
+                if (dist < z.radius + 1.2) {
+                    activeZonePrompt = z;
+                }
+            });
+
+            // Update Interaction HUD Button
+            const promptEl = document.getElementById('zone-interaction-prompt');
+            if (activeZonePrompt) {
+                document.getElementById('zone-action-text').innerText = `Interact: ${activeZonePrompt.name}`;
+                document.getElementById('zone-action-btn').onclick = () => openZoneModal(activeZonePrompt.id);
+                promptEl.classList.remove('hidden');
+            } else {
+                promptEl.classList.add('hidden');
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate3DLoop);
         }
 
         function addQ(subject, amount) {
             if (!myData.questions) myData.questions = { maths: 0, physics: 0, chem: 0 };
             const curr = myData.questions[subject] || 0;
+            myData.questions[subject] = Math.max(0, curr + amount);
             
             if (amount > 0) {
-                myData.questions[subject] = curr + amount;
-                myData.tokens = (myData.tokens || 0) + (amount * 2); // +2 Tokens per solved question
-                triggerCongratulations("Question Solved! 🔥", `Awesome job! Earned +10 XP & +${amount * 2} Tokens!`);
-            } else {
-                myData.questions[subject] = Math.max(0, curr + amount);
+                const tokenGain = 15;
+                myData.tokens = (myData.tokens || 0) + tokenGain;
+                spawn3DSpellParticles(playerPos.x, playerPos.y + 1, playerPos.z, 0xf59e0b);
+                triggerCongratulationsToast(`Question Solved! +10 XP & +${tokenGain} Tokens 🪙`);
             }
 
             saveLocalMyData();
@@ -746,76 +1151,76 @@
             updateUI();
         }
 
-        /* --- AI GEMINI PROMPT GENERATOR --- */
+        function renderShop() {
+            const titlesContainer = document.getElementById('shop-titles-list');
+            titlesContainer.innerHTML = '';
+            MARKET_ITEMS.titles.forEach(item => {
+                const owned = (myData.inventory || []).includes(item.id);
+                const equipped = myData.equippedTitle === item.id;
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-800/80 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center";
+                card.innerHTML = `
+                    <div>
+                        <div class="text-xs font-bold text-amber-400">${item.name}</div>
+                    </div>
+                    ${equipped ? `<span class="text-[10px] bg-blue-900/60 text-blue-300 font-bold px-2 py-1 rounded">EQUIPPED</span>` :
+                      owned ? `<button onclick="equipCosmetic('title', '${item.id}')" class="text-[10px] bg-slate-700 text-white font-bold px-2 py-1 rounded">EQUIP</button>` :
+                      `<button onclick="buyCosmetic('${item.id}', ${item.cost})" class="text-[10px] bg-amber-600 text-white font-bold px-2 py-1 rounded flex items-center gap-1"><i class="fa-solid fa-coins"></i> ${item.cost}</button>`
+                    }
+                `;
+                titlesContainer.appendChild(card);
+            });
+        }
+
+        function buyCosmetic(itemId, cost) {
+            if ((myData.tokens || 0) < cost) {
+                showAlert(`Not enough tokens! You need ${cost} tokens.`, "Insufficient Tokens");
+                return;
+            }
+            myData.tokens -= cost;
+            if (!myData.inventory) myData.inventory = [];
+            myData.inventory.push(itemId);
+            saveLocalMyData(); pushMyData(); updateUI();
+        }
+
+        function equipCosmetic(type, val) {
+            if (type === 'title') myData.equippedTitle = myData.equippedTitle === val ? "" : val;
+            saveLocalMyData(); pushMyData(); updateUI();
+        }
+
         function copyGeminiPrompt() {
             const type = document.getElementById('home-builder-type').value;
             const hours = document.getElementById('home-builder-hours').value || 24;
-            
-            const promptText = `Act as an expert JEE Exam Coach. Generate a ${type.toUpperCase()} sprint plan to complete within ${hours} hours.
-Please generate structured UNIQUE tasks and return strictly raw valid JSON with no markdown formatting:
-
-{
-  "title": "${type === 'weekly' ? 'Weekly JEE Master Strategy' : '24-Hour Intensive Sprint'}",
-  "type": "${type}",
-  "hours": ${hours},
-  "tasks": [
-    { "title": "Maths: Practice 20 Integration PYQs", "xp": 250 },
-    { "title": "Physics: Mechanics Formula & Concept Review", "xp": 200 },
-    { "title": "Chemistry: Organic Reaction Mechanisms", "xp": 200 }
-  ]
-}`;
-
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(promptText);
-                alert("Gemini Prompt Copied!");
-            } else {
-                alert("Prompt text: \n\n" + promptText);
-            }
+            const promptText = `Act as an expert JEE Exam Coach. Generate a ${type.toUpperCase()} sprint plan to complete within ${hours} hours in JSON format with title and tasks array.`;
+            navigator.clipboard.writeText(promptText);
+            showAlert("Gemini Prompt Copied!", "Prompt Copied");
         }
 
         function importAIPlanJSON() {
             const raw = document.getElementById('ai-json-import-input').value.trim();
-            if (!raw) return alert("Please paste the JSON string!");
-
+            if (!raw) return;
             try {
                 const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
                 const parsed = JSON.parse(cleaned);
-
                 document.getElementById('home-builder-title').value = parsed.title;
-                document.getElementById('home-builder-type').value = parsed.type || 'daily';
-                document.getElementById('home-builder-hours').value = parsed.hours || 24;
-
                 const container = document.getElementById('home-builder-tasks');
                 container.innerHTML = '';
-
-                const seenTitles = new Set();
                 parsed.tasks.forEach(t => {
-                    const cleanTitle = (t.title || '').trim();
-                    const normalized = cleanTitle.toLowerCase();
-
-                    if (cleanTitle && !seenTitles.has(normalized)) {
-                        seenTitles.add(normalized);
-                        const row = document.createElement('div');
-                        row.className = "flex gap-2 items-center";
-                        row.innerHTML = `
-                            <input type="text" value="${cleanTitle}" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                            <input type="number" value="${t.xp || 200}" placeholder="XP" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                        `;
-                        container.appendChild(row);
-                    }
+                    const row = document.createElement('div');
+                    row.className = "flex gap-2 items-center";
+                    row.innerHTML = `
+                        <input type="text" value="${t.title}" class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
+                        <input type="number" value="${t.xp || 200}" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
+                    `;
+                    container.appendChild(row);
                 });
-
-                alert("Successfully imported AI plan tasks!");
-            } catch (err) {
-                alert("Failed to parse JSON: " + err.message);
-            }
+            } catch (err) { showAlert("Error parsing JSON", "Import Error"); }
         }
 
-        /* --- HOME SCREEN PLAN BUILDER --- */
         function initHomeBuilderRows() {
             const container = document.getElementById('home-builder-tasks');
             container.innerHTML = '';
-            addHomeBuilderTaskRow();
             addHomeBuilderTaskRow();
         }
 
@@ -824,523 +1229,70 @@ Please generate structured UNIQUE tasks and return strictly raw valid JSON with 
             const row = document.createElement('div');
             row.className = "flex gap-2 items-center";
             row.innerHTML = `
-                <input type="text" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                <input type="number" placeholder="XP" value="250" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                <input type="text" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
+                <input type="number" placeholder="XP" value="250" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
             `;
             container.appendChild(row);
         }
 
         function saveHomePlan() {
             const title = document.getElementById('home-builder-title').value.trim();
-            const type = document.getElementById('home-builder-type').value;
-            const hours = parseInt(document.getElementById('home-builder-hours').value) || (type === 'weekly' ? 168 : 24);
-
-            if (!title) return alert("Please give your plan a title!");
-
+            if (!title) return;
             const titles = document.querySelectorAll('.home-task-title');
             const xps = document.querySelectorAll('.home-task-xp');
-
             const tasks = [];
-            const seenTitles = new Set();
-
             titles.forEach((el, idx) => {
-                const tVal = el.value.trim();
-                const xVal = parseInt(xps[idx].value) || 100;
-                const normalized = tVal.toLowerCase();
-
-                if (tVal && !seenTitles.has(normalized)) {
-                    seenTitles.add(normalized);
-                    tasks.push({
-                        id: 'tsk_' + Math.random().toString(36).substr(2, 6),
-                        title: tVal,
-                        xp: xVal
-                    });
+                if (el.value.trim()) {
+                    tasks.push({ id: 'tsk_' + Math.random().toString(36).substr(2, 6), title: el.value.trim(), xp: parseInt(xps[idx].value) || 100 });
                 }
             });
-
-            if (tasks.length === 0) return alert("Please add at least one unique task!");
-
-            const deadlineTime = Date.now() + (hours * 60 * 60 * 1000);
-
-            myActivePlan = {
-                id: 'pln_' + Math.random().toString(36).substr(2, 6),
-                title: title,
-                type: type,
-                deadline: deadlineTime,
-                startTime: Date.now(),
-                author: myUserName || 'You',
-                tasks: tasks
-            };
-
-            myData.completedTasks = {};
-            myData.quitTasks = {};
+            myActivePlan = { id: 'pln_' + Math.random().toString(36).substr(2, 6), title, tasks };
             localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
+            saveLocalMyData(); pushMyData(); updateUI();
         }
 
         function resetHomePlan() {
-            if (myActivePlan && !confirm("Create a new plan? This will reset your progress.")) return;
             myActivePlan = null;
             localStorage.removeItem('jee_active_plan');
-            myData.completedTasks = {};
-            myData.quitTasks = {};
-            saveLocalMyData();
-            pushMyData();
-            initHomeBuilderRows();
-            updateUI();
-        }
-
-        /* --- TASK ACTIONS: ADD, EDIT, DELETE, QUIT, COMPLETE --- */
-        function addTaskToActivePlan() {
-            if (!myActivePlan) return;
-
-            const titleIn = document.getElementById('add-active-task-title').value.trim();
-            const xpIn = parseInt(document.getElementById('add-active-task-xp').value) || 200;
-
-            if (!titleIn) return alert("Please enter a task title!");
-
-            const isDuplicate = myActivePlan.tasks.some(t => t.title.trim().toLowerCase() === titleIn.toLowerCase());
-            if (isDuplicate) return alert("Task already exists! Each task must be unique.");
-
-            myActivePlan.tasks.push({
-                id: 'tsk_' + Math.random().toString(36).substr(2, 6),
-                title: titleIn,
-                xp: xpIn
-            });
-
-            document.getElementById('add-active-task-title').value = '';
-            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
-        }
-
-        function openEditTaskModal(taskId) {
-            if (!myActivePlan) return;
-            const task = myActivePlan.tasks.find(t => t.id === taskId);
-            if (!task) return;
-
-            document.getElementById('edit-task-id').value = task.id;
-            document.getElementById('edit-task-title-input').value = task.title;
-            document.getElementById('edit-task-xp-input').value = task.xp;
-            document.getElementById('edit-task-modal').classList.remove('hidden');
-        }
-
-        function closeEditTaskModal() {
-            document.getElementById('edit-task-modal').classList.add('hidden');
-        }
-
-        function saveTaskEdits() {
-            const taskId = document.getElementById('edit-task-id').value;
-            const newTitle = document.getElementById('edit-task-title-input').value.trim();
-            const newXP = parseInt(document.getElementById('edit-task-xp-input').value) || 100;
-
-            if (!newTitle) return alert("Title cannot be empty!");
-
-            const isDuplicate = myActivePlan.tasks.some(t => t.id !== taskId && t.title.trim().toLowerCase() === newTitle.toLowerCase());
-            if (isDuplicate) return alert("Task title must be unique!");
-
-            const task = myActivePlan.tasks.find(t => t.id === taskId);
-            if (task) {
-                task.title = newTitle;
-                task.xp = newXP;
-                localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-                saveLocalMyData();
-                pushMyData();
-                closeEditTaskModal();
-                updateUI();
-            }
-        }
-
-        function deleteTask(taskId) {
-            if (!myActivePlan || !confirm("Delete this task?")) return;
-
-            myActivePlan.tasks = myActivePlan.tasks.filter(t => t.id !== taskId);
-            if (myData.completedTasks) delete myData.completedTasks[taskId];
-            if (myData.quitTasks) delete myData.quitTasks[taskId];
-
-            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
-        }
-
-        function toggleQuitTask(taskId) {
-            if (!myData.quitTasks) myData.quitTasks = {};
-            if (!myData.completedTasks) myData.completedTasks = {};
-
-            if (myData.quitTasks[taskId]) {
-                delete myData.quitTasks[taskId];
-            } else {
-                myData.quitTasks[taskId] = true;
-                delete myData.completedTasks[taskId];
-            }
-
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
+            saveLocalMyData(); pushMyData(); initHomeBuilderRows(); updateUI();
         }
 
         function toggleTask(taskId) {
             if (!myData.completedTasks) myData.completedTasks = {};
-            if (!myData.quitTasks) myData.quitTasks = {};
-
-            const isNowCompleted = !myData.completedTasks[taskId];
-
-            if (isNowCompleted) {
-                myData.completedTasks[taskId] = true;
-                delete myData.quitTasks[taskId];
-
-                const task = myActivePlan ? myActivePlan.tasks.find(t => t.id === taskId) : null;
-                const taskXP = task ? task.xp : 200;
-
-                // Speed calculation bonus tokens
-                let speedTokenBonus = 10;
-                if (myActivePlan && myActivePlan.deadline) {
-                    const totalDuration = (myActivePlan.deadline - (myActivePlan.startTime || Date.now()));
-                    const timeLeft = myActivePlan.deadline - Date.now();
-                    if (timeLeft > totalDuration * 0.5) {
-                        speedTokenBonus += 15; // Fast completion bonus!
-                    }
-                }
-
-                myData.tokens = (myData.tokens || 0) + speedTokenBonus;
-
-                triggerCongratulations(
-                    "Task Completed! 🚀", 
-                    `Earned +${taskXP} XP & +${speedTokenBonus} Tokens! ${speedTokenBonus > 10 ? '(includes Speed Bonus ⚡)' : ''}`
-                );
-
-            } else {
-                delete myData.completedTasks[taskId];
-            }
-
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
+            myData.completedTasks[taskId] = !myData.completedTasks[taskId];
+            spawn3DSpellParticles(playerPos.x, playerPos.y + 1, playerPos.z, 0x10b981);
+            saveLocalMyData(); pushMyData(); updateUI();
         }
 
         function renderActivePlan() {
             const list = document.getElementById('tasks-list');
             list.innerHTML = '';
-
-            const tasks = myActivePlan ? (myActivePlan.tasks || []) : [];
-            let completedCount = 0;
-
-            if (myActivePlan) {
-                const myStats = calculateXP(myData);
-                document.getElementById('cur-plan-title').innerText = myActivePlan.title;
-                document.getElementById('cur-plan-author').innerText = myActivePlan.author || 'You';
-                document.getElementById('cur-plan-target-xp').innerText = `${myStats.totalPlanXP} XP`;
-            }
-
-            tasks.forEach(t => {
-                const isChecked = !!(myData.completedTasks && myData.completedTasks[t.id]);
-                const isQuit = !!(myData.quitTasks && myData.quitTasks[t.id]);
-                if (isChecked) completedCount++;
-
+            (myActivePlan?.tasks || []).forEach(t => {
+                const isChecked = !!myData.completedTasks[t.id];
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border flex items-center justify-between transition-all ${
-                    isChecked 
-                        ? 'bg-slate-900/60 border-emerald-500/50' 
-                        : isQuit 
-                        ? 'bg-slate-900/40 border-rose-900/50 opacity-70' 
-                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                }`;
-
+                card.className = "p-2.5 rounded-xl border flex items-center justify-between bg-slate-900 border-slate-800";
                 card.innerHTML = `
-                    <div class="flex items-center gap-3 overflow-hidden mr-2">
-                        <div onclick="toggleTask('${t.id}')" class="w-5 h-5 rounded border flex items-center justify-center cursor-pointer shrink-0 ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'}">
-                            <i class="fa-solid fa-check text-xs ${isChecked ? '' : 'hidden'}"></i>
-                        </div>
-                        <span onclick="toggleTask('${t.id}')" class="text-xs font-bold truncate cursor-pointer ${
-                            isChecked ? 'line-through text-slate-400' : isQuit ? 'line-through text-rose-400/80' : 'text-slate-100'
-                        }">
-                            ${t.title} ${isQuit ? '<span class="text-[10px] text-rose-400 font-normal ml-1">(QUITTED)</span>' : ''}
-                        </span>
+                    <div onclick="toggleTask('${t.id}')" class="flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid ${isChecked ? 'fa-square-check text-emerald-400' : 'fa-square text-slate-600'}"></i>
+                        <span class="text-xs ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</span>
                     </div>
-
-                    <div class="flex items-center gap-2 shrink-0">
-                        <span class="text-xs font-bold ${isQuit ? 'text-rose-500 line-through' : 'text-amber-400'} code-font">+${t.xp}XP</span>
-                        
-                        <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/60 rounded-lg p-1">
-                            <button onclick="toggleQuitTask('${t.id}')" title="${isQuit ? 'Resume Task' : 'Quit Task'}" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 ${isQuit ? 'text-amber-400' : 'text-rose-400'}">
-                                <i class="fa-solid ${isQuit ? 'fa-rotate-left' : 'fa-ban'} text-[11px]"></i>
-                            </button>
-                            <button onclick="openEditTaskModal('${t.id}')" title="Edit Task" class="w-6 h-6 flex items-center justify-center text-blue-400 hover:bg-slate-700 rounded">
-                                <i class="fa-solid fa-pen text-[11px]"></i>
-                            </button>
-                            <button onclick="deleteTask('${t.id}')" title="Delete Task" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded">
-                                <i class="fa-solid fa-trash-can text-[11px]"></i>
-                            </button>
-                        </div>
-                    </div>
+                    <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
                 `;
                 list.appendChild(card);
-            });
-
-            document.getElementById('cur-plan-progress-badge').innerText = `${completedCount}/${tasks.length} Done`;
-        }
-
-        /* --- MARKETPLACE & COSMETICS LOGIC --- */
-        function renderShopCatalog() {
-            const grid = document.getElementById('shop-items-grid');
-            grid.innerHTML = '';
-
-            SHOP_ITEMS.forEach(item => {
-                const isEquipped = item.type === 'border' 
-                    ? myData.equippedBorder === item.styleClass 
-                    : myData.equippedBadge === item.title;
-
-                const card = document.createElement('div');
-                card.className = "bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex justify-between items-center";
-                card.innerHTML = `
-                    <div class="space-y-0.5">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-white">${item.title}</span>
-                            <span class="text-[9px] bg-slate-700 text-slate-300 px-1.5 py-0.2 rounded font-bold uppercase">${item.type}</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400">${item.desc}</p>
-                    </div>
-
-                    <button onclick="buyOrEquipShopItem('${item.id}')" class="text-xs ${
-                        isEquipped 
-                            ? 'bg-emerald-600 text-white cursor-default' 
-                            : 'bg-amber-600 hover:bg-amber-500 text-white'
-                    } font-bold px-3 py-1.5 rounded-xl shadow code-font shrink-0 ml-2">
-                        ${isEquipped ? 'Equipped ✨' : `${item.price} Tokens`}
-                    </button>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function buyOrEquipShopItem(itemId) {
-            const item = SHOP_ITEMS.find(i => i.id === itemId);
-            if (!item) return;
-
-            const isEquipped = item.type === 'border' 
-                ? myData.equippedBorder === item.styleClass 
-                : myData.equippedBadge === item.title;
-
-            if (isEquipped) return;
-
-            if ((myData.tokens || 0) < item.price) {
-                alert(`Not enough Tokens! Solve more questions or complete tasks quickly to earn ${item.price - (myData.tokens || 0)} more Tokens.`);
-                return;
-            }
-
-            myData.tokens -= item.price;
-
-            if (item.type === 'border') {
-                myData.equippedBorder = item.styleClass;
-            } else if (item.type === 'badge') {
-                myData.equippedBadge = item.title;
-            }
-
-            triggerCongratulations("Item Unlocked! 🛍️", `You successfully purchased and equipped ${item.title}!`);
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
-        }
-
-        function renderChallengesFeed() {
-            const feed = document.getElementById('challenges-feed');
-            feed.innerHTML = '';
-
-            const keys = Object.keys(lobbyChallenges);
-            if (keys.length === 0) {
-                feed.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No challenges published in this lobby yet.</div>`;
-                return;
-            }
-
-            keys.forEach(k => {
-                const challenge = lobbyChallenges[k];
-                const card = document.createElement('div');
-                card.className = "bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-2";
-                
-                let taskSummary = (challenge.tasks || []).map(t => `<li class="text-[11px] text-slate-300 flex justify-between"><span>• ${t.title}</span><b class="text-amber-400 code-font">+${t.xp}XP</b></li>`).join('');
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="flex items-center gap-1.5">
-                                <h4 class="text-xs font-bold text-blue-400">${challenge.title}</h4>
-                                <span class="text-[9px] bg-indigo-950 border border-indigo-600/40 text-indigo-300 px-1.5 py-0.2 rounded font-bold uppercase">${challenge.type || 'daily'}</span>
-                            </div>
-                            <div class="text-[10px] text-slate-400">Published by: ${challenge.author || 'Anonymous'}</div>
-                        </div>
-                        <button onclick="acceptChallenge('${k}')" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg shadow">
-                            Follow Challenge
-                        </button>
-                    </div>
-                    <ul class="space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80">${taskSummary}</ul>
-                `;
-                feed.appendChild(card);
-            });
-        }
-
-        function acceptChallenge(challengeKey) {
-            const challenge = lobbyChallenges[challengeKey];
-            if (!challenge) return;
-
-            const hours = challenge.type === 'weekly' ? 168 : 24;
-            myActivePlan = {
-                ...challenge,
-                deadline: Date.now() + (hours * 60 * 60 * 1000),
-                startTime: Date.now()
-            };
-
-            myData.completedTasks = {};
-            myData.quitTasks = {};
-            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-            saveLocalMyData();
-            pushMyData();
-            switchView('lobby');
-            updateUI();
-        }
-
-        function publishCurrentPlanAsChallenge() {
-            if (!myActivePlan || !myActivePlan.tasks || myActivePlan.tasks.length === 0) {
-                alert("Create a plan first!");
-                return;
-            }
-            myActivePlan.author = myUserName;
-            db.ref(`lobbies/${currentLobby}/challenges`).push(myActivePlan).then(() => {
-                alert(`"${myActivePlan.title}" published!`);
-                switchView('challenges');
-            }).catch(err => showConnError(err.message));
-        }
-
-        function renderPlayersDirectory() {
-            const container = document.getElementById('players-list-container');
-            container.innerHTML = '';
-
-            const playerIds = Object.keys(lobbyPlayers);
-            document.getElementById('lobby-online-count').innerText = `${playerIds.length}/${LOBBY_MAX_CAPACITY} Players`;
-
-            if (playerIds.length === 0) {
-                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No active players online.</div>`;
-                return;
-            }
-
-            playerIds.forEach(id => {
-                const p = lobbyPlayers[id];
-                const pStats = calculateXP(p);
-                const isMe = id === myUserId;
-
-                const borderClass = p.equippedBorder && p.equippedBorder !== 'none' ? p.equippedBorder : 'border-slate-700/50';
-
-                const item = document.createElement('div');
-                item.className = `flex items-center justify-between bg-slate-800/60 border ${borderClass} p-2.5 rounded-xl text-xs`;
-                item.innerHTML = `
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <span class="w-2.5 h-2.5 rounded-full ${isMe ? 'bg-blue-400' : 'bg-emerald-400'} animate-pulse shrink-0"></span>
-                        <div class="truncate">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-bold text-slate-200">${p.name || 'Player'} ${isMe ? '(You)' : ''}</span>
-                                <span class="text-[9px] bg-blue-950 border border-blue-500/50 text-blue-300 px-1 py-0.2 rounded font-bold">${p.equippedBadge || 'Novice'}</span>
-                            </div>
-                            <div class="text-[10px] text-slate-400 truncate">Plan: ${p.activePlanTitle || 'Custom Sprint'}</div>
-                        </div>
-                    </div>
-                    <span class="text-xs text-amber-400 font-bold code-font shrink-0 ml-2">${pStats.xp} XP</span>
-                `;
-                container.appendChild(item);
             });
         }
 
         function renderBattleRivals() {
             const container = document.getElementById('battle-rivals-container');
             container.innerHTML = '';
-
-            const playerIds = Object.keys(lobbyPlayers);
-            
-            const sortedPlayers = playerIds.map(id => ({
-                id,
-                data: lobbyPlayers[id],
-                stats: calculateXP(lobbyPlayers[id])
-            })).sort((a, b) => b.stats.xp - a.stats.xp);
-
-            const rivals = sortedPlayers.filter(p => p.id !== myUserId);
-
-            if (rivals.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-4 text-center text-xs text-slate-500">
-                        <i class="fa-solid fa-user-clock text-lg mb-1 block"></i>
-                        No opponents in lobby "${currentLobby}" to compare yet.
-                    </div>
-                `;
-                return;
-            }
-
-            rivals.forEach((r, index) => {
-                const opp = r.data;
-                const oppStats = r.stats;
-                const oppDamage = Math.min(oppStats.xp, oppStats.maxBossHP);
-                const borderClass = opp.equippedBorder && opp.equippedBorder !== 'none' ? opp.equippedBorder : 'border-purple-500/40';
-
+            Object.keys(lobbyPlayers).filter(id => id !== myUserId).forEach((id, idx) => {
+                const p = lobbyPlayers[id];
+                const stats = calculateXP(p);
                 const card = document.createElement('div');
-                card.className = `bg-purple-950/30 border ${borderClass} rounded-xl p-3 space-y-1.5 shadow`;
-                card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-black text-amber-400 code-font">#${index + 1}</span>
-                            <span class="text-[9px] bg-purple-900 border border-purple-400 text-purple-200 px-1.5 py-0.2 rounded font-bold">${opp.equippedBadge || 'Novice'}</span>
-                            <span class="text-xs font-bold text-purple-300">${opp.name || 'Competitor'}</span>
-                        </div>
-                        <span class="text-base font-black text-white code-font">${oppStats.xp} XP</span>
-                    </div>
-                    <div class="text-xs text-slate-400 flex justify-between">
-                        <span>Boss Damage: <b class="text-rose-400">${oppDamage} HP</b></span>
-                        <span>Questions Solved: <b class="text-emerald-400">${oppStats.qTotal}</b></span>
-                    </div>
-                `;
+                card.className = "bg-slate-800 p-2.5 rounded-xl flex justify-between text-xs";
+                card.innerHTML = `<span>#${idx+1} ${p.name || 'Hero'}</span><b class="text-amber-400">${stats.xp} XP</b>`;
                 container.appendChild(card);
             });
-        }
-
-        function switchView(view) {
-            ['lobby', 'shop', 'challenges', 'players', 'battle'].forEach(v => {
-                document.getElementById(`view-${v}`).classList.add('hidden');
-                const btn = document.getElementById(`nav-${v}`);
-                if (btn) btn.className = "text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition";
-            });
-
-            document.getElementById(`view-${view}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`nav-${view}`);
-            if (activeBtn) activeBtn.className = "text-blue-400 flex flex-col items-center gap-1 transition font-bold";
-        }
-
-        function startDeadlineTimer() {
-            function updateTimer() {
-                const timerEl = document.getElementById('boss-deadline-timer');
-                if (!myActivePlan || !myActivePlan.deadline) {
-                    timerEl.innerText = "Set a Plan";
-                    return;
-                }
-
-                const now = Date.now();
-                const diff = myActivePlan.deadline - now;
-
-                if (diff <= 0) {
-                    timerEl.innerText = "DEADLINE EXPIRED!";
-                    timerEl.className = "code-font text-rose-500 font-bold animate-pulse";
-                    return;
-                }
-
-                const hrs = Math.floor(diff / (1000 * 60 * 60));
-                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-                timerEl.innerText = `${hrs}h ${mins}m ${secs}s`;
-                timerEl.className = hrs < 3 ? "code-font text-rose-400 font-bold" : "code-font text-amber-300";
-            }
-
-            updateTimer();
-            setInterval(updateTimer, 1000);
         }
     </script>
 </body>
