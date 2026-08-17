@@ -3,1298 +3,793 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JEE 3D Open World Simulation</title>
-    <!-- Tailwind CSS -->
+    <title>JEE Battle Arena</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="JEE Arena">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Three.js (3D WebGL Library) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Firebase SDKs (v9 Compat) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono&display=swap" rel="stylesheet">
+
+    <!-- Firebase v9 compat (swap projectId / apiKey with yours) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-        .code-font { font-family: monospace; }
+        :root {
+            --accent-1: #6366f1;   /* primary accent */
+            --accent-2: #4f46e5;   /* primary accent, darker */
+            --accent-3: #64748b;   /* secondary blob tone */
+            --blob-op: .16;
+            --blob-blur: 110px;
+            --bg-tint-1: rgba(99,102,241,.08);
+            --bg-tint-2: rgba(100,116,139,.05);
+        }
+        body[data-theme="mono"] {
+            --accent-1: #94a3b8; --accent-2: #64748b; --accent-3: #475569;
+            --bg-tint-1: rgba(148,163,184,.06); --bg-tint-2: rgba(71,85,105,.04);
+        }
+        body[data-theme="crimson"] {
+            --accent-1: #e11d48; --accent-2: #9f1239; --accent-3: #57534e;
+            --bg-tint-1: rgba(225,29,72,.08); --bg-tint-2: rgba(87,83,78,.05);
+        }
+        body[data-theme="emerald"] {
+            --accent-1: #10b981; --accent-2: #047857; --accent-3: #0f766e;
+            --bg-tint-1: rgba(16,185,129,.07); --bg-tint-2: rgba(15,118,110,.05);
+        }
+        body[data-theme="royal"] {
+            --accent-1: #a855f7; --accent-2: #f59e0b; --accent-3: #7c3aed;
+            --bg-tint-1: rgba(168,85,247,.07); --bg-tint-2: rgba(245,158,11,.05);
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background:
+                radial-gradient(circle at 15% -10%, var(--bg-tint-1), transparent 45%),
+                radial-gradient(circle at 90% 5%, var(--bg-tint-2), transparent 40%),
+                #020617;
+            background-attachment: fixed;
+        }
+        .code-font { font-family: 'Space Mono', monospace; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes toast-in {
-            0% { transform: translateY(-20px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+            0%  { transform: translateY(-20px); opacity: 0; }
+            100%{ transform: translateY(0);      opacity: 1; }
         }
         .animate-toast { animation: toast-in 0.3s ease-out forwards; }
-        #webgl-container { position: absolute; inset: 0; z-index: 0; cursor: grab; }
-        #webgl-container:active { cursor: grabbing; }
-        canvas { touch-action: none; user-select: none; width: 100%; height: 100%; }
-        .hud-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 15px rgba(225,29,72,.4); }
+            50%       { box-shadow: 0 0 25px rgba(225,29,72,.8); }
+        }
+        .boss-enraged { animation: pulse-red 1.5s infinite; }
+        .task-done { opacity:.5; text-decoration:line-through; }
+
+        /* ── Aesthetic layer (added — same palette, more depth) ── */
+        @keyframes shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .hp-shimmer::after {
+            content:"";
+            position:absolute; inset:0;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,.18) 45%, transparent 60%);
+            animation: shimmer 2.6s ease-in-out infinite;
+        }
+        .card-lift {
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .card-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px -14px rgba(0,0,0,.6);
+            border-color: rgba(99,102,241,.35);
+        }
+        .glass {
+            background: rgba(10,10,20,.35);
+            backdrop-filter: blur(22px) saturate(160%);
+            -webkit-backdrop-filter: blur(22px) saturate(160%);
+            border-color: rgba(255,255,255,.08) !important;
+        }
+        .stat-ring {
+            box-shadow: 0 0 0 1px rgba(255,255,255,.04) inset, 0 6px 20px -10px rgba(0,0,0,.6);
+        }
+        .divider-fade {
+            height:1px;
+            background: linear-gradient(90deg, transparent, rgba(148,163,184,.25), transparent);
+            border:none;
+        }
+        .btn-press:active { transform: scale(.96); }
+        ::selection { background: rgba(99,102,241,.35); }
+
+        /* Premium additions */
+        .gradient-border {
+            position: relative;
+            border: 1px solid transparent;
+            background:
+                linear-gradient(rgba(10,10,20,.35), rgba(10,10,20,.35)) padding-box,
+                linear-gradient(135deg, var(--accent-1), var(--accent-2)) border-box;
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+        }
+        .premium-panel {
+            background: linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.12) inset,
+                0 0 0 1px rgba(255,255,255,.02) inset,
+                0 20px 40px -20px rgba(0,0,0,.7);
+        }
+        .glass-blob {
+            position: fixed;
+            border-radius: 9999px;
+            filter: blur(var(--blob-blur));
+            z-index: 0;
+            pointer-events: none;
+            opacity: var(--blob-op);
+        }
+        .blob-1 { background: var(--accent-1); }
+        .blob-2 { background: var(--accent-3); }
+        .blob-3 { background: var(--accent-2); }
+        .blob-4 { background: var(--accent-3); }
+        .glass-chip {
+            background: rgba(255,255,255,.06);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,.1);
+        }
+        .glass-tile {
+            background: rgba(255,255,255,.04) !important;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,.08) !important;
+        }
+        .glass-row {
+            background: rgba(255,255,255,.045) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,.07) !important;
+        }
+        main, header, nav, .fixed { position: relative; z-index: 1; }
+        .btn-premium {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            box-shadow: 0 6px 18px -6px rgba(99,102,241,.4), 0 0 0 1px rgba(255,255,255,.06) inset;
+            transition: filter .15s ease, transform .15s ease;
+        }
+        .btn-premium:hover { filter: brightness(1.12); }
+        .chip-premium {
+            background: linear-gradient(135deg, rgba(245,158,11,.16), rgba(245,158,11,.05));
+            box-shadow: 0 0 0 1px rgba(245,158,11,.35) inset;
+        }
+        .chip-premium-indigo {
+            background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(99,102,241,.05));
+            box-shadow: 0 0 0 1px rgba(99,102,241,.35) inset;
+        }
+        .text-gradient-gold {
+            background: linear-gradient(135deg, #fcd34d, #f59e0b);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .section-label {
+            letter-spacing: .09em;
+        }
+        .nav-pill-active {
+            position: relative;
+        }
+        .nav-pill-active::before {
+            content:"";
+            position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+            width: 28px; height: 3px; border-radius: 3px;
+            background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+            box-shadow: 0 0 10px rgba(99,102,241,.5);
+        }
+        @keyframes pop-in {
+            0%   { transform: scale(.4); opacity:0; }
+            60%  { transform: scale(1.15); opacity:1; }
+            100% { transform: scale(1); }
+        }
+        .animate-pop { animation: pop-in .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+        @keyframes count-flash {
+            0%   { color:#fcd34d; text-shadow:0 0 12px rgba(252,211,77,.9); }
+            100% { color:inherit; text-shadow:none; }
+        }
+        .flash-gain { animation: count-flash 1s ease-out; }
+        .theme-swatch-btn.active-theme { box-shadow: 0 0 0 2px var(--accent-1) inset; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen select-none relative">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24 select-none">
+<div class="glass-blob blob-1" style="top:-10%; left:-10%; width:320px; height:320px;"></div>
+<div class="glass-blob blob-2" style="top:10%; right:-15%; width:260px; height:260px;"></div>
+<div class="glass-blob blob-3" style="bottom:10%; left:-10%; width:240px; height:240px;"></div>
+<div class="glass-blob blob-4" style="bottom:-10%; right:-10%; width:280px; height:280px;"></div>
 
-    <!-- 3D WebGL Canvas Container -->
-    <div id="webgl-container"></div>
 
-    <!-- Celebration Popup Toast -->
-    <div id="congratulations-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-xs w-full px-4">
-        <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 border-2 border-emerald-300 rounded-2xl p-3 shadow-2xl text-center text-white animate-toast space-y-1">
-            <div class="text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-                <i class="fa-solid fa-trophy text-amber-300 animate-bounce"></i> 3D Strike Landed!
-            </div>
-            <p id="toast-message" class="text-xs font-bold">Awesome work! +25 Tokens Earned 🎉</p>
+<!-- Celebration Toast -->
+<div id="congratulations-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-xs w-full px-4">
+    <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 border-2 border-emerald-300 rounded-2xl p-3 shadow-2xl text-center text-white animate-toast space-y-1">
+        <div class="text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-trophy text-amber-300 animate-bounce"></i>
+            <span id="toast-title">Objective Complete!</span>
         </div>
+        <p id="toast-message" class="text-xs font-bold">Awesome work! Rewards Claimed 🎉</p>
     </div>
+</div>
 
-    <!-- HUD Overlay Header -->
-    <header class="fixed top-2 left-2 right-2 z-30 pointer-events-none flex flex-col gap-1.5 max-w-lg mx-auto">
-        <div class="flex items-center justify-between bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 rounded-2xl shadow-2xl pointer-events-auto">
-            <div class="flex items-center gap-2">
-                <h1 class="text-xs sm:text-sm font-black text-blue-400 flex items-center gap-1.5 tracking-wide hud-shadow">
-                    🎮 3D JEE WORLD SIM
-                </h1>
-                <span id="sim-online-counter" class="text-[9px] text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-600/40 px-2 py-0.5 rounded-full">
-                    1 Online
-                </span>
+<!-- Offline Banner -->
+<div id="offline-status-banner" class="bg-slate-800 text-slate-300 text-[10px] py-1 px-3 text-center border-b border-slate-700 hidden">
+    <i class="fa-solid fa-wifi text-amber-400 mr-1"></i> Running Offline. Progress syncs when reconnected.
+</div>
+
+<!-- Header -->
+<header class="glass border-b border-slate-800 p-3.5 sticky top-0 z-40 space-y-2.5 shadow-2xl">
+    <div class="flex items-center justify-between">
+        <h1 class="text-sm sm:text-base font-black flex items-center gap-2 tracking-wide">
+            <span class="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">⚔️ JEE BATTLE ARENA</span>
+            <button onclick="openManualModal()" class="btn-press w-6 h-6 rounded-full glass-chip flex items-center justify-center text-slate-300 hover:text-blue-300 shrink-0" title="User Manual">
+                <i class="fa-solid fa-circle-question text-xs"></i>
+            </button>
+            <button onclick="openThemeModal()" class="btn-press w-6 h-6 rounded-full glass-chip flex items-center justify-center text-slate-300 hover:text-blue-300 shrink-0" title="Themes">
+                <i class="fa-solid fa-palette text-xs"></i>
+            </button>
+        </h1>
+        <div class="flex items-center gap-2">
+            <div id="connection-indicator" class="text-[10px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-lg text-emerald-400 font-bold flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online
             </div>
-
-            <div class="flex items-center gap-1.5">
-                <!-- Reset Camera Button -->
-                <button onclick="resetCameraView()" class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold px-2 py-1 rounded-xl flex items-center gap-1 shadow transition">
-                    <i class="fa-solid fa-video text-blue-400"></i> Reset View
-                </button>
-
-                <!-- Tokens Balance Display -->
-                <div class="text-xs bg-amber-950/80 border border-amber-500/50 px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 shadow">
-                    <i class="fa-solid fa-coins text-amber-400"></i>
-                    <span id="my-tokens-count" class="code-font">0</span>
-                </div>
-
-                <span id="player-display" onclick="openLoginModal()" class="text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-xl text-slate-300 font-bold cursor-pointer hover:border-blue-500 flex items-center gap-1.5 transition">
-                    <i class="fa-solid fa-user-gear text-blue-400"></i>
-                    <span id="my-name-tag">Hero</span>
-                </span>
-                <span id="sync-status" title="Connected" class="text-xs text-emerald-400 font-semibold">
-                    <i class="fa-solid fa-cloud"></i>
-                </span>
+            <div class="text-xs glass-chip chip-premium px-2.5 py-1 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 shadow" title="Permanent Balance">
+                <i class="fa-solid fa-coins text-amber-400"></i>
+                <span id="my-coins-count" class="code-font">0</span>
             </div>
-        </div>
-
-        <!-- WORLD BOSS HP HUD COMPONENT -->
-        <div class="bg-slate-950/90 backdrop-blur border border-rose-900/60 rounded-xl p-2 shadow-xl pointer-events-auto space-y-1">
-            <div class="flex items-center justify-between text-[10px] font-bold">
-                <span class="text-rose-400 flex items-center gap-1">
-                    <i id="boss-icon" class="fa-solid fa-skull text-rose-500 animate-pulse"></i>
-                    <span id="boss-title-tag">WORLD BOSS: IRON COLOSSUS</span>
-                </span>
-                <span id="boss-hp-text" class="text-slate-300 code-font">0 / 0 HP</span>
+            <div class="text-xs glass-chip chip-premium-indigo px-2.5 py-1 rounded-xl text-indigo-300 font-bold flex items-center gap-1.5 shadow" title="Weekly XP">
+                <i class="fa-solid fa-bolt text-indigo-400"></i>
+                <span id="my-weekly-xp-count" class="code-font">0 XP</span>
             </div>
-            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700 relative">
-                <div id="boss-hp-fill" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-400 h-full w-full transition-all duration-500 rounded-full"></div>
-            </div>
-        </div>
-
-        <!-- Camera Control Instructions Badge -->
-        <div class="bg-slate-950/70 backdrop-blur border border-slate-800/80 rounded-xl px-2.5 py-1 text-[10px] text-slate-400 flex items-center justify-between pointer-events-auto">
-            <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-arrows-spin text-blue-400 animate-spin-slow"></i>
-                <b>Drag</b> to rotate view • <b>Scroll/Pinch</b> to zoom
+            <span id="player-display" onclick="openLoginModal()" class="text-xs glass-chip px-2.5 py-1 rounded-xl text-slate-300 font-bold cursor-pointer hover:border-blue-500 flex items-center gap-1.5 transition">
+                <span id="my-avatar-icon"><i class="fa-solid fa-user-gear text-blue-400"></i></span>
+                <span id="my-name-tag">Candidate</span>
             </span>
-            <span class="text-slate-500 font-semibold">WASD / Arrow Keys to Move</span>
-        </div>
-    </header>
-
-    <!-- Zone Interaction Prompt Popup -->
-    <div id="zone-interaction-prompt" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 hidden pointer-events-auto">
-        <button id="zone-action-btn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-2xl shadow-2xl border border-blue-300 flex items-center gap-2 animate-bounce">
-            <i id="zone-action-icon" class="fa-solid fa-building"></i>
-            <span id="zone-action-text">Enter Zone</span>
-        </button>
-    </div>
-
-    <!-- On-Screen Touch Controls (Virtual Movement D-Pad for Mobile) -->
-    <div class="fixed bottom-4 left-4 z-30 flex flex-col items-center gap-1 opacity-80 sm:opacity-90">
-        <button ontouchstart="startMove('up')" ontouchend="stopMove()" onmousedown="startMove('up')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
-            <i class="fa-solid fa-arrow-up"></i>
-        </button>
-        <div class="flex gap-2">
-            <button ontouchstart="startMove('left')" ontouchend="stopMove()" onmousedown="startMove('left')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <button ontouchstart="startMove('down')" ontouchend="stopMove()" onmousedown="startMove('down')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
-                <i class="fa-solid fa-arrow-down"></i>
-            </button>
-            <button ontouchstart="startMove('right')" ontouchend="stopMove()" onmousedown="startMove('right')" onmouseup="stopMove()" class="w-10 h-10 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-bold flex items-center justify-center active:bg-blue-600">
-                <i class="fa-solid fa-arrow-right"></i>
-            </button>
         </div>
     </div>
 
-    <!-- MODAL OVERLAY 1: QUEST BOARD & SPRINT PLANNER (Zone 1) -->
-    <div id="modal-quests" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+    <!-- Boss HUD -->
+    <div id="boss-hud-card" class="gradient-border premium-panel rounded-2xl p-3 stat-ring space-y-2 transition-all">
+        <div class="flex items-center justify-between text-xs font-bold">
+            <span class="text-rose-400 flex items-center gap-1.5">
+                <i id="boss-icon" class="fa-solid fa-skull text-rose-500 animate-pulse"></i>
+                <span id="boss-title-tag">DAILY BOSS: IRON COLOSSUS</span>
+            </span>
+            <span id="boss-hp-text" class="text-slate-300 code-font">100% HP</span>
+        </div>
+        <div class="w-full bg-slate-900 h-4 rounded-full overflow-hidden border border-slate-700 flex relative">
+            <div id="hp-basic-bar" class="hp-shimmer relative overflow-hidden bg-gradient-to-r from-emerald-500 to-amber-500 h-full transition-all duration-500 text-[9px] font-black text-slate-950 flex items-center justify-center" style="width:75%">BASIC (75%)</div>
+            <div id="hp-special-bar" class="bg-rose-600/80 h-full transition-all duration-500 text-[9px] font-black text-white flex items-center justify-center border-l border-slate-950" style="width:25%">SPECIAL (25%)</div>
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold">
+            <span>Rule: <b class="text-amber-400">Tasks ≤75% HP</b> | <b class="text-rose-400">Task Trial = Final 25%</b></span>
+            <span class="flex items-center gap-1 text-slate-300">
+                <i class="fa-regular fa-clock text-indigo-400"></i>
+                Monday XP Reset: <b id="monday-reset-countdown" class="code-font text-amber-300 ml-1">--d --h</b>
+            </span>
+        </div>
+        <div id="streak-badge" class="hidden flex items-center gap-1.5 text-[10px] font-bold text-orange-300 bg-orange-950/50 border border-orange-700/50 rounded-lg px-2 py-1 w-fit">
+            <i class="fa-solid fa-fire"></i> <span id="streak-count-text">0</span>-Day Streak
+        </div>
+    </div>
+</header>
+
+<main class="p-3 sm:p-4 max-w-lg mx-auto space-y-4">
+
+    <!-- TAB: BOSS BATTLE -->
+    <div id="view-battle" class="space-y-4">
+
+        <!-- Special Challenge Card -->
+        <div id="special-execution-card" class="card-lift premium-panel border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3 relative overflow-hidden transition-all">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span id="special-badge-tag" class="text-[10px] bg-slate-800 text-slate-400 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-slate-700">
+                        🔒 Locked Phase (Requires 75% Basic Damage)
+                    </span>
+                    <h3 id="special-challenge-desc" class="text-xs sm:text-sm font-bold text-white mt-2 leading-relaxed">
+                        Complete daily tasks to unlock the 25% Task Mastery Trial...
+                    </h3>
+                </div>
+                <i id="special-icon" class="fa-solid fa-lock text-slate-600 text-xl"></i>
+            </div>
+
+            <div id="special-unlock-progress-wrap" class="space-y-1">
+                <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                    <div id="special-unlock-progress-bar" class="h-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all duration-500" style="width:0%"></div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Trial Testing Categories Synthesized From Your Activity:</span>
+                    <i class="fa-solid fa-diagram-project text-indigo-400"></i>
+                </div>
+                <div id="synthesized-topics-chips" class="flex flex-wrap gap-1.5 pt-1">
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md">No tasks completed yet</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-slate-800/80 pt-2.5">
+                <span class="text-[11px] text-slate-400 font-semibold">Reward: <b class="text-amber-400">+150 Coins & Slain Trophy</b></span>
+                <button id="btn-start-slay-trial" onclick="openSlayTrialModal()" disabled class="btn-press bg-slate-800 text-slate-500 text-xs font-extrabold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-not-allowed">
+                    <i class="fa-solid fa-crosshairs"></i> Initiate 25% Slay Trial
+                </button>
+            </div>
+        </div>
+
+        <!-- Drills Logger -->
+        <div class="card-lift premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-slate-300 uppercase section-label flex items-center gap-2">
+                    <i class="fa-solid fa-fire text-amber-400"></i> Practice Problem Drills (+10 XP each)
+                </h3>
+                <button onclick="toggleFocusTimer()" class="btn-press text-[10px] font-bold chip-premium-indigo text-indigo-300 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                    <i class="fa-solid fa-stopwatch"></i> Focus Session
+                </button>
+            </div>
+            <hr class="divider-fade">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="stat-ring glass-tile p-2.5 rounded-xl text-center">
+                    <div class="text-[10px] font-bold text-blue-400 uppercase">Maths Drills</div>
+                    <div id="q-maths-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                    <div class="flex gap-1">
+                        <button onclick="addQ('maths',-1)" class="btn-press flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('maths',1)"  class="btn-press flex-1 bg-blue-600   text-xs py-1 rounded font-bold hover:bg-blue-500">+1</button>
+                    </div>
+                    <button onclick="addQ('maths',5)" class="btn-press mt-1 w-full bg-blue-950/70 border border-blue-700/50 text-blue-300 text-[10px] py-1 rounded font-bold hover:bg-blue-900">+5</button>
+                </div>
+                <div class="stat-ring glass-tile p-2.5 rounded-xl text-center">
+                    <div class="text-[10px] font-bold text-indigo-400 uppercase">Physics Drills</div>
+                    <div id="q-physics-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                    <div class="flex gap-1">
+                        <button onclick="addQ('physics',-1)" class="btn-press flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('physics',1)"  class="btn-press flex-1 bg-indigo-600 text-xs py-1 rounded font-bold hover:bg-indigo-500">+1</button>
+                    </div>
+                    <button onclick="addQ('physics',5)" class="btn-press mt-1 w-full bg-indigo-950/70 border border-indigo-700/50 text-indigo-300 text-[10px] py-1 rounded font-bold hover:bg-indigo-900">+5</button>
+                </div>
+                <div class="stat-ring glass-tile p-2.5 rounded-xl text-center">
+                    <div class="text-[10px] font-bold text-purple-400 uppercase">Chem Drills</div>
+                    <div id="q-chem-count" class="text-base font-bold code-font my-1 text-white">0</div>
+                    <div class="flex gap-1">
+                        <button onclick="addQ('chem',-1)" class="btn-press flex-1 bg-slate-700 text-xs py-1 rounded font-bold hover:bg-slate-600">-</button>
+                        <button onclick="addQ('chem',1)"  class="btn-press flex-1 bg-purple-600 text-xs py-1 rounded font-bold hover:bg-purple-500">+1</button>
+                    </div>
+                    <button onclick="addQ('chem',5)" class="btn-press mt-1 w-full bg-purple-950/70 border border-purple-700/50 text-purple-300 text-[10px] py-1 rounded font-bold hover:bg-purple-900">+5</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Tasks -->
+        <div class="card-lift premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-slate-300 uppercase section-label flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-400"></i> General Daily Tasks (75% Cap)
+                </h3>
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <button onclick="repeatYesterdayTasks()" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Repeat Yesterday
+                    </button>
+                    <button onclick="resetDailyProgress()" class="text-[11px] text-slate-400 hover:text-white flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Tasks
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <select id="add-task-category" class="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-blue-400 font-bold focus:outline-none">
+                    <option value="Study Session">Study Block</option>
+                    <option value="Problem Solving">Problems</option>
+                    <option value="Revision">Revision</option>
+                    <option value="Mock Test">Mock/Test</option>
+                    <option value="Doubts">Doubts</option>
+                    <option value="General">General</option>
+                </select>
+                <input type="text" id="add-task-input" placeholder="e.g. Complete 1hr focused practice..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                <button onclick="addCustomBasicTask()" class="btn-premium btn-press text-white font-bold text-xs px-3.5 rounded-xl">+ Add</button>
+            </div>
+            <div id="basic-tasks-list" class="space-y-2 max-h-80 overflow-y-auto pr-1 no-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- TAB: AI IMPORT -->
+    <div id="view-ai" class="hidden space-y-4">
+        <div class="premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-4">
+            <div class="text-center py-2 space-y-1 border-b border-slate-800 pb-3">
+                <div class="w-10 h-10 bg-purple-600/20 text-purple-400 rounded-full flex items-center justify-center mx-auto text-lg">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white">Import / AI Boss Configuration</h3>
+                <p class="text-xs text-slate-400">Generate a prompt for Gemini AI, or paste JSON data directly!</p>
+            </div>
+            <div class="bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/40 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-robot text-purple-400"></i> Step 1: Copy Gemini Prompt
+                    </span>
+                    <button onclick="copyGeminiPrompt()" class="text-[10px] bg-purple-600 hover:bg-purple-500 px-2.5 py-1 rounded-lg font-bold text-white flex items-center gap-1 shadow">
+                        <i class="fa-solid fa-copy"></i> Copy Prompt
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini, then paste the JSON output below!</p>
+            </div>
+            <div class="space-y-2 pt-1">
+                <label class="text-[10px] font-bold uppercase text-slate-400">Step 2: Paste Boss Config JSON</label>
+                <textarea id="ai-json-import-input" rows="7" placeholder='{"bossName":"...","basicTasks":[...],"specialChallenge":"...","reward":{"coins":150}}' class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
+                <button onclick="importBossJSON()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-lg transition">
+                    <i class="fa-solid fa-file-import"></i> Load Imported Boss Config
+                </button>
+            </div>
+            <div class="space-y-2 pt-1 border-t border-slate-800">
+                <label class="text-[10px] font-bold uppercase text-slate-400">Reset to Default Boss</label>
+                <button onclick="resetToDefaultBoss()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Boss to Default
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: JOURNAL -->
+    <div id="view-achievements" class="hidden space-y-4">
+        <div class="premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h2 class="text-sm font-bold text-blue-400 flex items-center gap-2">
-                    <i class="fa-solid fa-scroll text-amber-400"></i> Central Quest Board & Planner
-                </h2>
-                <button onclick="closeZoneModal('quests')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                <div>
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-award"></i> Boss Defeated Journal
+                    </h2>
+                    <p class="text-[11px] text-slate-400">Cumulative slays, trophy relics, and prestige titles!</p>
+                </div>
+                <div class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-white font-extrabold code-font">
+                    <i class="fa-solid fa-skull text-rose-500 mr-1"></i>
+                    <span id="total-kills-count">0 Slays</span>
+                </div>
             </div>
-
-            <!-- HOME SCREEN PLAN CONTAINER -->
-            <div class="space-y-3">
-                
-                <!-- IF NO PLAN CREATED: INLINE PLAN BUILDER + AI GEMINI PROMPT ASSISTANT -->
-                <div id="home-plan-builder" class="space-y-4">
-                    <div class="text-center py-2 space-y-1">
-                        <h3 class="text-xs font-bold text-white">Create Daily or Weekly Sprint</h3>
-                        <p class="text-[11px] text-slate-400">Design your plan manually or use Gemini AI to generate one instantly!</p>
+            <div class="space-y-2">
+                <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Milestone Titles</h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 opacity-50" id="badge-m10">
+                        <i class="fa-solid fa-shield text-base text-amber-400 mb-1"></i>
+                        <div class="text-[10px] font-bold text-white">Slayer I</div>
+                        <div class="text-[9px] text-slate-400">10 Slays</div>
                     </div>
-
-                    <!-- AI GEMINI PROMPT GENERATOR ASSISTANT -->
-                    <div class="bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/40 rounded-xl p-3 space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-blue-300 flex items-center gap-1.5">
-                                <i class="fa-solid fa-robot text-purple-400"></i> Gemini AI Plan Generator
-                            </span>
-                            <button onclick="copyGeminiPrompt()" class="text-[10px] bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded-lg font-bold text-white flex items-center gap-1">
-                                <i class="fa-solid fa-copy"></i> Copy Prompt
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-slate-300">Copy this prompt, give it to Gemini to structure your schedule, then paste Gemini's JSON response below!</p>
-                        
-                        <textarea id="ai-json-import-input" rows="2" placeholder="Paste Gemini's structured response JSON here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500 code-font"></textarea>
-                        
-                        <button onclick="importAIPlanJSON()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 shadow">
-                            <i class="fa-solid fa-file-import"></i> Auto-Fill Plan from Gemini Output
-                        </button>
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 opacity-50" id="badge-m50">
+                        <i class="fa-solid fa-crown text-base text-yellow-400 mb-1"></i>
+                        <div class="text-[10px] font-bold text-white">Veteran</div>
+                        <div class="text-[9px] text-slate-400">50 Slays</div>
                     </div>
-
-                    <div class="border-t border-slate-800 pt-3 space-y-3">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[10px] font-bold uppercase text-slate-400">Sprint Type</label>
-                                <select id="home-builder-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                                    <option value="daily">Daily Sprint (24h Target)</option>
-                                    <option value="weekly">Weekly Battle (7-Day Target)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold uppercase text-slate-400">Deadline Hours</label>
-                                <input type="number" id="home-builder-hours" value="24" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-[10px] font-bold uppercase text-slate-400">Sprint / Plan Title</label>
-                            <input type="text" id="home-builder-title" placeholder="e.g. Organic Chem & Calculus Weekly Sprint" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-[10px] font-bold uppercase text-slate-400">Sprint Task Items</label>
-                            <div id="home-builder-tasks" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
-                            <button onclick="addHomeBuilderTaskRow()" class="w-full py-2 bg-slate-800/80 border border-dashed border-slate-700 rounded-xl text-xs font-bold text-slate-300 hover:border-blue-500 transition">
-                                + Add Task Item
-                            </button>
-                        </div>
-
-                        <button onclick="saveHomePlan()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg transition">
-                            Start Custom Sprint
-                        </button>
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 opacity-50" id="badge-m100">
+                        <i class="fa-solid fa-fire text-base text-rose-500 mb-1"></i>
+                        <div class="text-[10px] font-bold text-white">Mythic</div>
+                        <div class="text-[9px] text-slate-400">100 Slays</div>
                     </div>
                 </div>
-
-                <!-- IF PLAN IS ACTIVE: CHECKLIST DASHBOARD -->
-                <div id="home-active-plan" class="hidden space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
-                            <i class="fa-solid fa-list-check text-blue-400"></i> Active Custom Plan
-                        </h3>
-                        <div class="flex gap-1.5">
-                            <button onclick="publishCurrentPlanAsChallenge()" class="text-[11px] bg-amber-600 hover:bg-amber-500 px-2.5 py-1 rounded-xl font-bold text-white flex items-center gap-1 shadow">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> Share to World Market
-                            </button>
-                            <button onclick="resetHomePlan()" class="text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-xl font-bold text-slate-300 flex items-center gap-1">
-                                <i class="fa-solid fa-rotate-left"></i> Reset
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-1">
-                        <div class="flex justify-between items-center">
-                            <div id="cur-plan-title" class="text-xs font-bold text-blue-400">Custom Plan</div>
-                            <span id="cur-plan-progress-badge" class="text-[10px] bg-blue-950 text-blue-300 border border-blue-600/50 px-2 py-0.5 rounded-full font-bold code-font">
-                                0/0 Done
-                            </span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 flex justify-between">
-                            <span>Author: <b id="cur-plan-author" class="text-slate-300">You</b></span>
-                            <span>Target XP: <b id="cur-plan-target-xp" class="text-amber-400 code-font">0 XP</b></span>
-                        </div>
-                    </div>
-
-                    <!-- ADD ACTIVE TASK FORM -->
-                    <div class="bg-slate-800/50 border border-slate-700/60 p-2.5 rounded-xl space-y-2">
-                        <div class="text-[10px] font-bold text-slate-400 uppercase">Add Single Task (Unique Only)</div>
-                        <div class="flex gap-2">
-                            <input type="text" id="add-active-task-title" placeholder="New unique task description..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                            <input type="number" id="add-active-task-xp" value="200" placeholder="XP" class="w-16 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                            <button onclick="addTaskToActivePlan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 rounded-lg shadow flex items-center gap-1">
-                                <i class="fa-solid fa-plus"></i> Add
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="tasks-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
-
             </div>
-        </div>
-    </div>
-
-    <!-- MODAL OVERLAY 2: PRACTICE DRILLS (Zone 2) -->
-    <div id="modal-practice" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
-                    <i class="fa-solid fa-bullseye text-rose-400"></i> Speed Practice Grounds
-                </h2>
-                <button onclick="closeZoneModal('practice')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
-            </div>
-            
-            <p class="text-xs text-slate-400">Log your solved practice problems to launch elemental 3D spell strikes at the world boss!</p>
-
-            <div class="grid grid-cols-1 gap-2.5">
-                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <div>
-                        <div class="text-xs font-bold text-blue-400 uppercase">Maths Drills</div>
-                        <div id="q-maths-count" class="text-base font-bold code-font text-white">0 PYQs</div>
-                    </div>
-                    <div class="flex gap-1.5">
-                        <button onclick="addQ('maths', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
-                        <button onclick="addQ('maths', 1)" class="w-8 h-8 bg-blue-600 text-xs rounded-lg font-bold hover:bg-blue-500">+</button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <div>
-                        <div class="text-xs font-bold text-indigo-400 uppercase">Physics Drills</div>
-                        <div id="q-physics-count" class="text-base font-bold code-font text-white">0 PYQs</div>
-                    </div>
-                    <div class="flex gap-1.5">
-                        <button onclick="addQ('physics', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
-                        <button onclick="addQ('physics', 1)" class="w-8 h-8 bg-indigo-600 text-xs rounded-lg font-bold hover:bg-indigo-500">+</button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <div>
-                        <div class="text-xs font-bold text-purple-400 uppercase">Chem Drills</div>
-                        <div id="q-chem-count" class="text-base font-bold code-font text-white">0 PYQs</div>
-                    </div>
-                    <div class="flex gap-1.5">
-                        <button onclick="addQ('chem', -1)" class="w-8 h-8 bg-slate-700 text-xs rounded-lg font-bold hover:bg-slate-600">-</button>
-                        <button onclick="addQ('chem', 1)" class="w-8 h-8 bg-purple-600 text-xs rounded-lg font-bold hover:bg-purple-500">+</button>
-                    </div>
+            <div class="space-y-2">
+                <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Unlocked Trophy Relics</h3>
+                <div id="trophies-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 text-center py-4">No boss trophies unlocked yet.</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL OVERLAY 3: MARKETPLACE BAZAAR (Zone 3) -->
-    <div id="modal-shop" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+    <!-- TAB: SHOP -->
+    <div id="view-shop" class="hidden space-y-4">
+        <div class="premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                 <div>
                     <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
                         <i class="fa-solid fa-store"></i> Cosmetics Bazaar
                     </h2>
-                    <p class="text-[11px] text-slate-400">Unlock titles, badges, and colored names!</p>
+                    <p class="text-[11px] text-slate-400">Unlock titles and badges using permanent coins!</p>
                 </div>
-                <button onclick="closeZoneModal('shop')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                <div class="text-xs bg-amber-950/80 border border-amber-500/50 px-3 py-1.5 rounded-xl text-amber-300 font-bold flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-coins text-amber-400"></i>
+                    <span id="shop-balance-display" class="code-font">0 Coins</span>
+                </div>
             </div>
-
-            <div class="text-xs bg-amber-950/80 border border-amber-500/50 p-2 rounded-xl text-amber-300 font-bold flex justify-between items-center">
-                <span>Token Balance:</span>
-                <span id="shop-balance-display" class="code-font text-sm">0 Tokens</span>
+            <div class="space-y-3">
+                <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Available Titles</h3>
+                <div class="grid grid-cols-1 gap-2" id="shop-titles-list"></div>
             </div>
-
-            <div class="space-y-4">
-                <div class="space-y-2">
-                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Player Titles</h3>
-                    <div class="grid grid-cols-1 gap-2" id="shop-titles-list"></div>
-                </div>
-
-                <div class="space-y-2">
-                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">World Badges</h3>
-                    <div class="grid grid-cols-2 gap-2" id="shop-badges-list"></div>
-                </div>
-
-                <div class="space-y-2">
-                    <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Name Glow Colors</h3>
-                    <div class="grid grid-cols-2 gap-2" id="shop-colors-list"></div>
-                </div>
+            <div class="space-y-3 mt-4">
+                <h3 class="text-[11px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-gun text-rose-400"></i> Battle Avatars
+                </h3>
+                <div class="grid grid-cols-3 gap-2" id="shop-avatars-list"></div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL OVERLAY 4: HALL OF FAME / RANKINGS (Zone 4) -->
-    <div id="modal-hall" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+    <!-- TAB: LEADERBOARD -->
+    <div id="view-rankings" class="hidden space-y-4">
+        <div class="premium-panel border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h2 class="text-sm font-bold text-rose-400 flex items-center gap-2">
-                    <i class="fa-solid fa-trophy text-amber-400"></i> Global Hall of Fame
-                </h2>
-                <button onclick="closeZoneModal('hall')" class="text-slate-400 hover:text-white text-xs px-2 py-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                <div>
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Global Rank List
+                    </h2>
+                    <p class="text-[10px] text-slate-400">Weekly XP resets every Monday. Coins are permanent.</p>
+                </div>
+                <div class="text-[10px] bg-indigo-950 border border-indigo-600/40 text-indigo-300 font-bold px-2.5 py-1 rounded-xl code-font">Weekly Cycle</div>
             </div>
-
-            <!-- My Stats Card -->
-            <div id="battle-my-card" class="bg-slate-800/90 border-2 border-blue-500 rounded-xl p-3 shadow-md">
-                <div class="flex justify-between items-center mb-1">
-                    <div class="flex items-center gap-1.5">
-                        <span id="battle-my-badge"></span>
-                        <span id="battle-my-name" class="text-xs font-bold text-blue-400">YOU</span>
+            <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[10px] font-bold text-center">
+                <button onclick="setRankSort('weeklyXp')" id="sort-btn-weeklyXp" class="py-1.5 rounded-lg bg-indigo-600 text-white shadow">Weekly XP</button>
+                <button onclick="setRankSort('slays')"    id="sort-btn-slays"    class="py-1.5 rounded-lg text-slate-400 hover:text-white">Boss Slays</button>
+                <button onclick="setRankSort('questions')" id="sort-btn-questions" class="py-1.5 rounded-lg text-slate-400 hover:text-white">Drills Solved</button>
+            </div>
+            <div id="battle-my-card" class="bg-gradient-to-r from-blue-950/80 to-indigo-950/80 border-2 border-blue-500 rounded-xl p-3 shadow-md space-y-1">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span id="battle-my-rank-badge" class="text-xs bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-md code-font">#--</span>
+                        <span id="battle-my-name" class="text-xs font-bold text-blue-300">YOU (Candidate)</span>
                     </div>
-                    <span id="battle-my-xp" class="text-base font-black text-white code-font">0 XP</span>
+                    <span id="battle-my-xp" class="text-sm font-black text-amber-400 code-font">0 Weekly XP</span>
                 </div>
-                <div id="battle-my-title-display" class="text-[10px] text-amber-400 font-bold mb-1 hidden"></div>
-                <div class="text-xs text-slate-400 flex justify-between">
-                    <span>Boss Damage: <b id="battle-my-damage" class="text-rose-400">0 HP</b></span>
-                    <span>Questions Solved: <b id="battle-my-qs" class="text-emerald-400">0</b></span>
+                <div class="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-blue-900/40">
+                    <span>Permanent Coins: <b id="battle-my-coins" class="text-amber-400">0</b></span>
+                    <span>Total Slays: <b id="battle-my-kills" class="text-rose-400">0</b></span>
                 </div>
             </div>
-
-            <div id="battle-rivals-container" class="space-y-2"></div>
+            <div class="space-y-2 pt-2">
+                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Top Competitors</div>
+                <div id="rankings-list-container" class="space-y-2"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Modal: Profile Setup -->
-    <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
-            <div class="text-center">
-                <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
-                    <i class="fa-solid fa-user-astronaut"></i>
-                </div>
-                <h3 class="text-base font-bold text-white">3D World Setup</h3>
-                <p class="text-xs text-slate-400">Choose your hero handle to enter the shared 3D arena.</p>
-            </div>
+</main>
 
-            <div>
-                <label class="text-[10px] font-bold uppercase text-slate-400">Player Handle</label>
-                <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex_JEE" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
-            </div>
-
-            <button onclick="saveProfileAndLobby()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg">Spawn into 3D World</button>
+<!-- Bottom Nav -->
+<!-- Floating Focus Timer Widget -->
+<div id="focus-timer-widget" class="hidden fixed bottom-16 left-0 right-0 z-40 px-3">
+    <div class="max-w-lg mx-auto gradient-border premium-panel rounded-2xl p-3 shadow-2xl flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-950/70 border border-indigo-700/50 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-stopwatch text-indigo-300 animate-pulse"></i>
         </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-bold text-slate-300 uppercase section-label">Focus Session</span>
+                <span id="focus-timer-display" class="code-font text-sm font-bold text-white">25:00</span>
+            </div>
+            <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                <div id="focus-timer-bar" class="h-full bg-gradient-to-r from-indigo-500 to-blue-400 transition-all duration-1000" style="width:0%"></div>
+            </div>
+        </div>
+        <button onclick="stopFocusTimer(false)" class="btn-press shrink-0 w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
     </div>
+</div>
 
-    <!-- Custom Alert / Confirm Dialog Modal -->
-    <div id="app-dialog-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
-            <div class="flex items-center gap-3">
-                <div id="dialog-icon-bg" class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-lg shrink-0">
-                    <i id="dialog-icon" class="fa-solid fa-circle-info"></i>
+<nav class="fixed bottom-0 left-0 right-0 glass border-t border-slate-800 z-40">
+    <div class="max-w-lg mx-auto grid grid-cols-5 text-center py-2">
+        <button onclick="switchView('battle')"      id="nav-battle"       class="btn-press transition-transform nav-pill-active text-blue-400 flex flex-col items-center gap-1 font-bold"><i class="fa-solid fa-skull text-base"></i><span class="text-[9px]">Boss</span></button>
+        <button onclick="switchView('ai')"          id="nav-ai"           class="btn-press transition-transform text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1"><i class="fa-solid fa-robot text-base"></i><span class="text-[9px]">Import AI</span></button>
+        <button onclick="switchView('achievements')" id="nav-achievements" class="btn-press transition-transform text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1"><i class="fa-solid fa-award text-base"></i><span class="text-[9px]">Journal</span></button>
+        <button onclick="switchView('shop')"        id="nav-shop"         class="btn-press transition-transform text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1"><i class="fa-solid fa-cart-shopping text-base"></i><span class="text-[9px]">Shop</span></button>
+        <button onclick="switchView('rankings')"    id="nav-rankings"     class="btn-press transition-transform text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1"><i class="fa-solid fa-trophy text-base"></i><span class="text-[9px]">Ranks</span></button>
+    </div>
+</nav>
+
+<!-- MODAL: Slay Trial -->
+<div id="trial-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="premium-panel border-2 border-rose-600/80 rounded-2xl p-5 w-full max-w-md space-y-4 shadow-2xl backdrop-blur-xl">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-rose-600/20 text-rose-500 rounded-full flex items-center justify-center text-sm animate-pulse">
+                    <i class="fa-solid fa-crosshairs"></i>
                 </div>
                 <div>
-                    <h3 id="dialog-title" class="text-sm font-bold text-white">Notice</h3>
-                    <p id="dialog-message" class="text-xs text-slate-300 mt-1 leading-relaxed whitespace-pre-line"></p>
+                    <h3 class="text-sm font-black text-rose-400 uppercase tracking-wider">Final Slay Trial Arena</h3>
+                    <div class="text-[10px] text-slate-400">Strict Accuracy Mode • 100% Correct Required</div>
                 </div>
             </div>
-            <div id="dialog-actions" class="flex justify-end gap-2 pt-2">
-                <button id="dialog-btn-cancel" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-2 rounded-xl">Cancel</button>
-                <button id="dialog-btn-ok" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow">OK</button>
+            <div class="text-xs bg-rose-950/80 border border-rose-600/50 px-3 py-1 rounded-xl text-rose-300 font-bold code-font">
+                ⏱️ <span id="trial-timer-display">60s</span>
             </div>
         </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 space-y-1">
+            <div class="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1">
+                <i class="fa-solid fa-bullseye"></i> Testing General Categories Completed Today:
+            </div>
+            <div id="trial-active-topics-list" class="text-xs font-bold text-slate-200 truncate">General Study & Practice Block</div>
+        </div>
+        <div id="trial-quiz-box" class="space-y-3">
+            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-2">
+                <div id="trial-q-subject" class="text-[10px] font-extrabold text-blue-400 uppercase tracking-wider">QUESTION 1 OF 3</div>
+                <div id="trial-q-text" class="text-xs font-bold text-white leading-relaxed">Loading question...</div>
+            </div>
+            <div id="trial-options-container" class="space-y-2"></div>
+        </div>
+        <div class="flex justify-between items-center text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+            <span>Rule: Single mistake resets attempt</span>
+            <button onclick="closeSlayTrialModal()" class="text-slate-400 hover:text-white underline">Forfeit Attempt</button>
+        </div>
     </div>
+</div>
 
-    <script>
-        // Firebase Config
-        const firebaseConfig = {
-          apiKey: "AIzaSyAf7gaZu52OpJXRZoOFV-RBsw-EKdW7lqQ",
-          authDomain: "lets-85076.firebaseapp.com",
-          databaseURL: "https://lets-85076-default-rtdb.asia-southeast1.firebasedatabase.app",
-          projectId: "lets-85076",
-          storageBucket: "lets-85076.firebasestorage.app",
-          messagingSenderId: "183210284372",
-          appId: "1:183210284372:web:a1dced56c89689e6b464c1"
-        };
+<!-- MODAL: Themes -->
+<div id="theme-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="gradient-border premium-panel rounded-2xl p-4 w-full max-w-sm space-y-3 shadow-2xl backdrop-blur-xl">
+        <div class="flex items-center justify-between">
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                <i class="fa-solid fa-palette text-blue-400"></i> Theme
+            </h3>
+            <button onclick="closeThemeModal()" class="btn-press w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <p class="text-[11px] text-slate-400">Pick a subtle accent — applies everywhere instantly.</p>
+        <div class="grid grid-cols-2 gap-2" id="theme-swatch-list">
+            <button onclick="setTheme('default')" class="theme-swatch-btn glass-tile rounded-xl p-3 text-left flex items-center gap-2" data-theme-id="default">
+                <span class="w-6 h-6 rounded-full shrink-0" style="background:linear-gradient(135deg,#6366f1,#4f46e5);"></span>
+                <span class="text-xs font-bold text-white">Midnight <span class="block text-[9px] font-normal text-slate-400">Default</span></span>
+            </button>
+            <button onclick="setTheme('mono')" class="theme-swatch-btn glass-tile rounded-xl p-3 text-left flex items-center gap-2" data-theme-id="mono">
+                <span class="w-6 h-6 rounded-full shrink-0" style="background:linear-gradient(135deg,#94a3b8,#475569);"></span>
+                <span class="text-xs font-bold text-white">Monochrome <span class="block text-[9px] font-normal text-slate-400">Minimal</span></span>
+            </button>
+            <button onclick="setTheme('crimson')" class="theme-swatch-btn glass-tile rounded-xl p-3 text-left flex items-center gap-2" data-theme-id="crimson">
+                <span class="w-6 h-6 rounded-full shrink-0" style="background:linear-gradient(135deg,#e11d48,#57534e);"></span>
+                <span class="text-xs font-bold text-white">Crimson Ops <span class="block text-[9px] font-normal text-slate-400">Battle</span></span>
+            </button>
+            <button onclick="setTheme('emerald')" class="theme-swatch-btn glass-tile rounded-xl p-3 text-left flex items-center gap-2" data-theme-id="emerald">
+                <span class="w-6 h-6 rounded-full shrink-0" style="background:linear-gradient(135deg,#10b981,#0f766e);"></span>
+                <span class="text-xs font-bold text-white">Emerald <span class="block text-[9px] font-normal text-slate-400">Calm focus</span></span>
+            </button>
+            <button onclick="setTheme('royal')" class="theme-swatch-btn glass-tile rounded-xl p-3 text-left flex items-center gap-2" data-theme-id="royal">
+                <span class="w-6 h-6 rounded-full shrink-0" style="background:linear-gradient(135deg,#a855f7,#f59e0b);"></span>
+                <span class="text-xs font-bold text-white">Royal <span class="block text-[9px] font-normal text-slate-400">Premium</span></span>
+            </button>
+        </div>
+    </div>
+</div>
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+<!-- MODAL: User Manual -->
+<div id="manual-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="gradient-border premium-panel rounded-2xl w-full max-w-md shadow-2xl backdrop-blur-xl max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 pb-3 border-b border-slate-800 shrink-0">
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-blue-400"></i> User Manual
+            </h3>
+            <button onclick="closeManualModal()" class="btn-press w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
 
-        const SINGLE_GLOBAL_WORLD_ID = "jee-3d-world-v1";
+        <div class="overflow-y-auto no-scrollbar p-4 space-y-2.5 text-slate-300">
 
-        function showAlert(message, title = "Notice") {
-            document.getElementById('dialog-title').innerText = title;
-            document.getElementById('dialog-message').innerText = message;
-            document.getElementById('dialog-icon').className = "fa-solid fa-circle-info text-blue-400";
-            document.getElementById('dialog-btn-cancel').classList.add('hidden');
-            
-            const okBtn = document.getElementById('dialog-btn-ok');
-            okBtn.onclick = () => {
-                document.getElementById('app-dialog-modal').classList.add('hidden');
-            };
-            document.getElementById('app-dialog-modal').classList.remove('hidden');
+            <details open class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-rose-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-skull"></i> Daily Boss &amp; HP Bar</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Each day you face a boss with 100% HP. Completing <b class="text-slate-200">General Daily Tasks</b> chips away the first <b class="text-amber-300">75% (Basic HP)</b>. The final <b class="text-rose-300">25% (Special HP)</b> can only be cleared by winning the <b class="text-slate-200">Final Slay Trial</b> quiz. The HP bar and card glow red ("enraged") once the boss is below 25% HP.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-blue-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-list-check"></i> General Daily Tasks</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Add tasks with a category and tap <b class="text-slate-200">+ Add</b>. Tap the checkbox — or <b class="text-slate-200">swipe a task right</b> — to mark it done and earn its XP. <b class="text-indigo-300">Repeat Yesterday</b> restores any tasks from your last session that you've since removed. <b class="text-slate-200">Reset Tasks</b> manually clears today's checkmarks (this also happens automatically each new day).</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-orange-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-fire"></i> Streaks</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Finish <b class="text-slate-200">every</b> task before the day rolls over and your streak (shown as a 🔥 badge on the Boss HUD) goes up by one. Missing even one task resets it to zero the next day.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-purple-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-dumbbell"></i> Practice Drills</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Log solved problems per subject with <b class="text-slate-200">+1</b> or the quicker <b class="text-slate-200">+5</b> button — each problem is worth <b class="text-amber-300">+10 Weekly XP</b>. Use <b class="text-slate-200">-</b> to correct a mistaken entry.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-indigo-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-stopwatch"></i> Focus Session Timer</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Tap <b class="text-slate-200">Focus Session</b> to start a 25-minute floating countdown. Finishing it awards <b class="text-amber-300">+30 XP</b> automatically. Tap the ✕ on the widget to cancel early (no XP awarded).</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-rose-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-crosshairs"></i> Final Slay Trial</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Unlocks once all Basic tasks are done. It's a timed multiple-choice quiz — pass it to clear the boss's remaining 25% HP, earn the boss's coin/XP reward, and log a slay in your Journal.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-cyan-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-robot"></i> AI Import</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Copy the Gemini prompt from the AI tab, paste it into an AI chat to generate a custom boss, then paste the returned JSON back in to import a new boss config with fresh tasks and a challenge.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-emerald-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-award"></i> Journal</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Tracks your slain bosses, milestone badges, and overall stats over time — a record of consistency, not just a single day's progress.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-amber-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-cart-shopping"></i> Shop</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Spend Coins (earned from slaying bosses) on cosmetic titles and <b class="text-slate-200">Battle Avatars</b> — weapon/gear icons shown in your header chip and next to your name on the Rankings leaderboard. Equip a purchased item to display it.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-blue-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-trophy"></i> Rankings</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Compares you against other players by Weekly XP, Total Slays, or Total Questions (switch sort at the top). Requires an active internet connection and Firebase sign-in.</p>
+            </details>
+
+            <details class="glass-tile rounded-xl p-3">
+                <summary class="text-xs font-bold text-slate-300 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-user-gear"></i> Profile &amp; Weekly Reset</summary>
+                <p class="text-[11px] leading-relaxed mt-2 text-slate-400">Tap your name chip in the header to set/change your player handle. Weekly XP automatically resets every Monday — Coins, Slays, and Journal history are permanent and never reset.</p>
+            </details>
+
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Profile Setup -->
+<div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="gradient-border premium-panel rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl backdrop-blur-xl">
+        <div class="text-center">
+            <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-user-gear"></i>
+            </div>
+            <h3 class="text-base font-bold text-white">Player Configuration</h3>
+            <p class="text-xs text-slate-400">Set your candidate handle for achievement tracking.</p>
+        </div>
+        <div>
+            <label class="text-[10px] font-bold uppercase text-slate-400">Player Handle</label>
+            <input type="text" id="login-name-input" placeholder="e.g. Rahul, Alex_JEE" maxlength="20" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500 mt-1">
+        </div>
+        <button onclick="saveProfile()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg">Save Config</button>
+    </div>
+</div>
+
+<!-- MODAL: App Dialog -->
+<div id="app-dialog-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="gradient-border premium-panel rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl backdrop-blur-xl">
+        <div class="flex items-center gap-3">
+            <div id="dialog-icon-bg" class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-lg shrink-0">
+                <i id="dialog-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div>
+                <h3 id="dialog-title" class="text-sm font-bold text-white">Notice</h3>
+                <p id="dialog-message" class="text-xs text-slate-300 mt-1 leading-relaxed whitespace-pre-line"></p>
+            </div>
+        </div>
+        <div id="dialog-actions" class="flex justify-end gap-2 pt-2">
+            <button id="dialog-btn-cancel" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-4 py-2 rounded-xl">Cancel</button>
+            <button id="dialog-btn-ok"     class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow">OK</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+
+<script>
+    // ── PWA Service Worker ──────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(r => console.log('SW registered:', r.scope))
+                .catch(e => console.error('SW failed:', e));
+        });
+    }
+
+    // ── Online / Offline Banner ─────────────────────────────
+    function updateOnlineStatus() {
+        const banner    = document.getElementById('offline-status-banner');
+        const indicator = document.getElementById('connection-indicator');
+        if (navigator.onLine) {
+            banner.classList.add('hidden');
+            indicator.className = "text-[10px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-lg text-emerald-400 font-bold flex items-center gap-1";
+            indicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online`;
+        } else {
+            banner.classList.remove('hidden');
+            indicator.className = "text-[10px] bg-amber-950 border border-amber-600/40 px-2 py-0.5 rounded-lg text-amber-300 font-bold flex items-center gap-1";
+            indicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Offline`;
         }
-
-        function showConfirm(message, title = "Confirm", onConfirm) {
-            document.getElementById('dialog-title').innerText = title;
-            document.getElementById('dialog-message').innerText = message;
-            document.getElementById('dialog-icon').className = "fa-solid fa-circle-question text-amber-400";
-            
-            const cancelBtn = document.getElementById('dialog-btn-cancel');
-            cancelBtn.classList.remove('hidden');
-            cancelBtn.onclick = () => {
-                document.getElementById('app-dialog-modal').classList.add('hidden');
-            };
-
-            const okBtn = document.getElementById('dialog-btn-ok');
-            okBtn.onclick = () => {
-                document.getElementById('app-dialog-modal').classList.add('hidden');
-                if (typeof onConfirm === 'function') onConfirm();
-            };
-            document.getElementById('app-dialog-modal').classList.remove('hidden');
-        }
-
-        // SHOP ITEMS DATABASE
-        const MARKET_ITEMS = {
-            titles: [
-                { id: "title_quantum", name: "Quantum Prodigy", cost: 100 },
-                { id: "title_iit", name: "IIT Bombay Bound 🎓", cost: 250 },
-                { id: "title_destroyer", name: "JEE Destroyer ⚡", cost: 500 },
-                { id: "title_infinite", name: "Infinite Solver ♾️", cost: 1000 }
-            ],
-            badges: [
-                { id: "badge_speed", name: "Speedster ⚡", icon: "fa-bolt text-amber-400", cost: 150 },
-                { id: "badge_king", name: "Sovereign 👑", icon: "fa-crown text-yellow-400", cost: 300 },
-                { id: "badge_flame", name: "Flame 🔥", icon: "fa-fire text-rose-500", cost: 450 },
-                { id: "badge_shield", name: "Defender 🛡️", icon: "fa-shield-halved text-blue-400", cost: 600 }
-            ],
-            colors: [
-                { id: "color_emerald", name: "Emerald Green", class: "text-emerald-400", cost: 100 },
-                { id: "color_gold", name: "Gold Master", class: "text-amber-400 font-extrabold", cost: 250 },
-                { id: "color_rose", name: "Rose Flame", class: "text-rose-400 font-extrabold", cost: 400 },
-                { id: "color_cyan", name: "Cyber Cyan", class: "text-cyan-400 font-extrabold", cost: 600 }
-            ]
-        };
-
-        let myUserId = localStorage.getItem('jee_my_user_id');
-        if (!myUserId) {
-            myUserId = 'usr_' + Math.random().toString(36).substr(2, 6);
-            localStorage.setItem('jee_my_user_id', myUserId);
-        }
-
-        let myUserName = localStorage.getItem('jee_my_user_name') || '';
-        let myActivePlan = JSON.parse(localStorage.getItem('jee_active_plan')) || null;
-
-        // Player Physical World Position (3D Coordinates: X, Y, Z)
-        let playerPos = { x: 0, y: 0.8, z: 12 };
-        let activeKeys = {};
-        let activeTouchMove = null;
-
-        let myData = { 
-            completedTasks: {},
-            quitTasks: {},
-            questions: { maths: 0, physics: 0, chem: 0 }, 
-            tokens: 50,
-            inventory: [],
-            equippedTitle: "",
-            equippedBadge: "",
-            equippedColor: "",
-            x: playerPos.x,
-            z: playerPos.z,
-            name: myUserName 
-        };
-
-        let lobbyPlayers = {};
-        let otherPlayerMeshes = {};
-
-        // Three.js 3D Engine & Movable Camera Variables
-        let scene, camera, renderer;
-        let playerMesh, bossMesh, bossEyesMesh;
-        let activeZonePrompt = null;
-        let spellParticles = [];
-
-        // MOVABLE CAMERA PERSPECTIVE STATE
-        let cameraYaw = Math.PI;       // Horizontal Orbit Angle around Hero (default behind hero)
-        let cameraPitch = 0.6;         // Vertical Tilt Angle (radians, clamped)
-        let cameraDistance = 15;       // Distance from hero
-        let isPointerDragging = false;
-        let previousPointerPos = { x: 0, y: 0 };
-        let touchStartPinchDist = 0;
-
-        // 3D Open World Map Zone Definitions
-        const WORLD_ZONES = [
-            { id: "boss", name: "Iron Colossus Boss Arena", x: 0, z: 0, radius: 6, icon: "fa-skull", color: "#e11d48" },
-            { id: "quests", name: "Central Quest Board & Planner", x: -16, z: -16, radius: 4.5, icon: "fa-scroll", color: "#3b82f6" },
-            { id: "practice", name: "Speed Practice Grounds", x: 16, z: -16, radius: 4.5, icon: "fa-bullseye", color: "#f59e0b" },
-            { id: "shop", name: "Cosmetics Bazaar", x: -16, z: 16, radius: 4.5, icon: "fa-store", color: "#10b981" },
-            { id: "hall", name: "Global Hall of Fame", x: 16, z: 16, radius: 4.5, icon: "fa-trophy", color: "#a855f7" }
-        ];
-
-        window.onload = function() {
-            if (!myUserName) {
-                openLoginModal();
-            } else {
-                updateNameDisplay();
-            }
-
-            loadLocalMyData();
-            setupFirebaseSync();
-            init3DEngine();
-            setupControls();
-
-            if (!myActivePlan) {
-                initHomeBuilderRows();
-            } else {
-                renderActivePlan();
-            }
-
-            renderShop();
-        };
-
-        function openLoginModal() {
-            document.getElementById('login-name-input').value = myUserName;
-            document.getElementById('login-modal').classList.remove('hidden');
-        }
-
-        function saveProfileAndLobby() {
-            const nameIn = document.getElementById('login-name-input').value.trim();
-            if (!nameIn) {
-                showAlert("Please enter a player handle!", "Name Required");
-                return;
-            }
-            myUserName = nameIn;
-            myData.name = myUserName;
-            localStorage.setItem('jee_my_user_name', myUserName);
-
-            updateNameDisplay();
-            document.getElementById('login-modal').classList.add('hidden');
-            saveLocalMyData();
-            pushMyData();
-        }
-
-        function updateNameDisplay() {
-            document.getElementById('my-name-tag').innerText = myUserName || 'Hero';
-            document.getElementById('battle-my-name').innerText = `YOU (${myUserName || 'Hero'})`;
-        }
-
-        function setupFirebaseSync() {
-            const worldRef = db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}`);
-
-            worldRef.on('value', (snapshot) => {
-                const val = snapshot.val() || {};
-                lobbyPlayers = val.players || {};
-
-                if (lobbyPlayers[myUserId]) {
-                    myData.completedTasks = lobbyPlayers[myUserId].completedTasks || myData.completedTasks || {};
-                    myData.quitTasks = lobbyPlayers[myUserId].quitTasks || myData.quitTasks || {};
-                    myData.questions = lobbyPlayers[myUserId].questions || myData.questions;
-                    myData.tokens = typeof lobbyPlayers[myUserId].tokens === 'number' ? lobbyPlayers[myUserId].tokens : (myData.tokens || 50);
-                    myData.inventory = lobbyPlayers[myUserId].inventory || myData.inventory || [];
-                    myData.equippedTitle = lobbyPlayers[myUserId].equippedTitle || myData.equippedTitle || "";
-                    myData.equippedBadge = lobbyPlayers[myUserId].equippedBadge || myData.equippedBadge || "";
-                    myData.equippedColor = lobbyPlayers[myUserId].equippedColor || myData.equippedColor || "";
-                    saveLocalMyData();
-                } else {
-                    pushMyData();
-                }
-
-                registerDisconnectCleanup();
-                syncOtherPlayer3DMeshes();
-                updateUI();
-            });
-        }
-
-        function registerDisconnectCleanup() {
-            db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}/players/${myUserId}`).onDisconnect().remove();
-        }
-
-        function pushMyData() {
-            myData.name = myUserName;
-            myData.x = parseFloat(playerPos.x.toFixed(2));
-            myData.z = parseFloat(playerPos.z.toFixed(2));
-            myData.lastActive = Date.now();
-            db.ref(`worlds/${SINGLE_GLOBAL_WORLD_ID}/players/${myUserId}`).set(myData);
-        }
-
-        function saveLocalMyData() {
-            localStorage.setItem(`jee_data_${SINGLE_GLOBAL_WORLD_ID}`, JSON.stringify(myData));
-        }
-
-        function loadLocalMyData() {
-            const saved = localStorage.getItem(`jee_data_${SINGLE_GLOBAL_WORLD_ID}`);
-            if (saved) {
-                try { myData = JSON.parse(saved); } catch (e) {}
-            }
-            if (!myData.completedTasks) myData.completedTasks = {};
-            if (!myData.quitTasks) myData.quitTasks = {};
-            if (typeof myData.tokens !== 'number') myData.tokens = 50;
-            if (!myData.inventory) myData.inventory = [];
-        }
-
-        function calculateXP(data) {
-            let xp = 0;
-            let tasks = 0;
-            let totalPlanXP = 0;
-            const completed = data.completedTasks || {};
-            
-            if (myActivePlan && myActivePlan.tasks) {
-                myActivePlan.tasks.forEach(t => {
-                    const tXp = Number(t.xp || 0);
-                    totalPlanXP += tXp;
-                    if (completed[t.id]) {
-                        xp += tXp;
-                        tasks++;
-                    }
-                });
-            }
-
-            const q = data.questions || { maths: 0, physics: 0, chem: 0 };
-            const qTotal = (q.maths || 0) + (q.physics || 0) + (q.chem || 0);
-            xp += (qTotal * 10);
-
-            return { xp, tasks, qTotal, totalPlanXP };
-        }
-
-        function calculateWorldBossStatus() {
-            let totalWorldDamage = 0;
-            let totalWorldMaxHP = 2000;
-
-            Object.keys(lobbyPlayers).forEach(id => {
-                const p = lobbyPlayers[id];
-                const stats = calculateXP(p);
-                totalWorldDamage += stats.xp;
-                totalWorldMaxHP += stats.totalPlanXP;
-            });
-
-            const bossHPLeft = Math.max(0, totalWorldMaxHP - totalWorldDamage);
-            return { bossHPLeft, totalWorldMaxHP, totalWorldDamage };
-        }
-
-        function updateUI() {
-            const myStats = calculateXP(myData);
-
-            document.getElementById('my-tokens-count').innerText = myData.tokens || 0;
-            document.getElementById('shop-balance-display').innerText = `${myData.tokens || 0} Tokens`;
-
-            const bossStatus = calculateWorldBossStatus();
-            const maxHP = bossStatus.totalWorldMaxHP;
-            const bossHPLeft = bossStatus.bossHPLeft;
-            const hpPercent = maxHP > 0 ? (bossHPLeft / maxHP) * 100 : 100;
-
-            if (bossHPLeft <= 0 && maxHP > 0) {
-                document.getElementById('boss-title-tag').innerText = "WORLD BOSS SLAIN! 🏆";
-                document.getElementById('boss-hp-text').innerText = `0 / ${maxHP.toLocaleString()} HP`;
-            } else {
-                document.getElementById('boss-title-tag').innerText = "WORLD BOSS: IRON COLOSSUS";
-                document.getElementById('boss-hp-text').innerText = `${bossHPLeft.toLocaleString()} / ${maxHP.toLocaleString()} HP`;
-            }
-            
-            document.getElementById('boss-hp-fill').style.width = `${hpPercent}%`;
-
-            document.getElementById('q-maths-count').innerText = `${myData.questions?.maths || 0} PYQs`;
-            document.getElementById('q-physics-count').innerText = `${myData.questions?.physics || 0} PYQs`;
-            document.getElementById('q-chem-count').innerText = `${myData.questions?.chem || 0} PYQs`;
-
-            document.getElementById('battle-my-xp').innerText = `${myStats.xp} XP`;
-            document.getElementById('battle-my-damage').innerText = `${myStats.xp} HP`;
-            document.getElementById('battle-my-qs').innerText = myStats.qTotal;
-
-            if (myActivePlan) {
-                document.getElementById('home-plan-builder').classList.add('hidden');
-                document.getElementById('home-active-plan').classList.remove('hidden');
-                renderActivePlan();
-            } else {
-                document.getElementById('home-plan-builder').classList.remove('hidden');
-                document.getElementById('home-active-plan').classList.add('hidden');
-            }
-
-            renderShop();
-            renderBattleRivals();
-        }
-
-        function triggerCongratulationsToast(message) {
-            const toast = document.getElementById('congratulations-toast');
-            document.getElementById('toast-message').innerText = message;
-            toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 2500);
-        }
-
-        function openZoneModal(zoneId) {
-            if (zoneId === 'boss') {
-                spawn3DSpellParticles(0, 3, 0, 0xe11d48);
-                triggerCongratulationsToast("Attacked World Boss in 3D Arena!");
-                return;
-            }
-
-            const el = document.getElementById(`modal-${zoneId}`);
-            if (el) el.classList.remove('hidden');
-        }
-
-        function closeZoneModal(zoneId) {
-            const el = document.getElementById(`modal-${zoneId}`);
-            if (el) el.classList.add('hidden');
-        }
-
-        function resetCameraView() {
-            cameraYaw = Math.PI;
-            cameraPitch = 0.6;
-            cameraDistance = 15;
-        }
-
-        // --- THREE.JS 3D ENGINE INITIALIZATION ---
-        function init3DEngine() {
-            const container = document.getElementById('webgl-container');
-
-            // Scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020617);
-            scene.fog = new THREE.FogExp2(0x020617, 0.02);
-
-            // Camera (Perspective 3D)
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-            // WebGL Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(renderer.domElement);
-
-            // Lights
-            const ambientLight = new THREE.AmbientLight(0x38bdf8, 0.5);
-            scene.add(ambientLight);
-
-            const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
-            sunLight.position.set(30, 50, 20);
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 1024;
-            sunLight.shadow.mapSize.height = 1024;
-            scene.add(sunLight);
-
-            // Ground World Plane
-            const groundGeo = new THREE.PlaneGeometry(80, 80);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            scene.add(ground);
-
-            // World Grid Helper
-            const gridHelper = new THREE.GridHelper(80, 40, 0x3b82f6, 0x1e293b);
-            gridHelper.position.y = 0.01;
-            scene.add(gridHelper);
-
-            // Build 3D Hero Mesh Avatar
-            const heroGroup = new THREE.Group();
-            
-            // Body
-            const bodyGeo = new THREE.CylinderGeometry(0.4, 0.2, 1.2, 8);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.3, roughness: 0.2 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 0.6;
-            body.castShadow = true;
-            heroGroup.add(body);
-
-            // Helmet
-            const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, metalness: 0.5 });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 1.35;
-            head.castShadow = true;
-            heroGroup.add(head);
-
-            // Visor (Front face marker)
-            const visorGeo = new THREE.BoxGeometry(0.3, 0.1, 0.2);
-            const visorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-            const visor = new THREE.Mesh(visorGeo, visorMat);
-            visor.position.set(0, 1.35, -0.25);
-            heroGroup.add(visor);
-
-            playerMesh = heroGroup;
-            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-            scene.add(playerMesh);
-
-            // Build 3D World Boss (Iron Colossus)
-            const bossGroup = new THREE.Group();
-            
-            const bossTorsoGeo = new THREE.BoxGeometry(2.5, 3.5, 2);
-            const bossTorsoMat = new THREE.MeshStandardMaterial({ color: 0x9f1239, metalness: 0.7, roughness: 0.3 });
-            const bossTorso = new THREE.Mesh(bossTorsoGeo, bossTorsoMat);
-            bossTorso.position.y = 2.5;
-            bossTorso.castShadow = true;
-            bossGroup.add(bossTorso);
-
-            const bossHeadGeo = new THREE.BoxGeometry(1.5, 1.2, 1.2);
-            const bossHeadMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, metalness: 0.8 });
-            const bossHead = new THREE.Mesh(bossHeadGeo, bossHeadMat);
-            bossHead.position.y = 4.8;
-            bossHead.castShadow = true;
-            bossGroup.add(bossHead);
-
-            // Glowing Red Eyes
-            const eyeGeo = new THREE.BoxGeometry(1.2, 0.2, 0.2);
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-            bossEyesMesh = new THREE.Mesh(eyeGeo, eyeMat);
-            bossEyesMesh.position.set(0, 4.8, 0.61);
-            bossGroup.add(bossEyesMesh);
-
-            // Boss Point Light
-            const bossLight = new THREE.PointLight(0xe11d48, 2, 15);
-            bossLight.position.set(0, 4, 0);
-            bossGroup.add(bossLight);
-
-            bossMesh = bossGroup;
-            bossMesh.position.set(0, 0, 0);
-            scene.add(bossMesh);
-
-            // Build 3D World Zone Structures
-            WORLD_ZONES.forEach(zone => {
-                if (zone.id === 'boss') return;
-
-                const zoneGroup = new THREE.Group();
-
-                // Pedestal Base
-                const baseGeo = new THREE.CylinderGeometry(zone.radius, zone.radius + 0.5, 0.3, 16);
-                const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
-                const base = new THREE.Mesh(baseGeo, baseMat);
-                base.position.y = 0.15;
-                base.receiveShadow = true;
-                zoneGroup.add(base);
-
-                // Floating Glowing Orb/Crystal
-                const crystalGeo = new THREE.OctahedronGeometry(1.2, 0);
-                const crystalMat = new THREE.MeshStandardMaterial({ color: parseInt(zone.color.replace('#', '0x')), roughness: 0.1, metalness: 0.9, emissive: parseInt(zone.color.replace('#', '0x')), emissiveIntensity: 0.5 });
-                const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-                crystal.position.y = 2.5;
-                crystal.castShadow = true;
-                zoneGroup.add(crystal);
-
-                // Zone Point Light
-                const pLight = new THREE.PointLight(parseInt(zone.color.replace('#', '0x')), 1.5, 12);
-                pLight.position.set(0, 2.5, 0);
-                zoneGroup.add(pLight);
-
-                zoneGroup.position.set(zone.x, 0, zone.z);
-                scene.add(zoneGroup);
-            });
-
-            window.addEventListener('resize', onWindowResize);
-            setupCameraDragControls(container);
-            requestAnimationFrame(animate3DLoop);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // --- MOVABLE CAMERA & CONTROLS SETUP ---
-        function setupCameraDragControls(container) {
-            // Mouse Drag & Touch Orbit Listeners
-            const onPointerDown = (e) => {
-                // Ignore drags starting over interactive buttons or modals
-                if (e.target.closest('button') || e.target.closest('#login-modal') || e.target.closest('.fixed')) return;
-                isPointerDragging = true;
-                previousPointerPos = {
-                    x: e.clientX || (e.touches && e.touches[0].clientX) || 0,
-                    y: e.clientY || (e.touches && e.touches[0].clientY) || 0
-                };
-            };
-
-            const onPointerMove = (e) => {
-                if (!isPointerDragging) return;
-
-                // Handle dual-touch pinch zoom
-                if (e.touches && e.touches.length === 2) {
-                    const dist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    if (touchStartPinchDist > 0) {
-                        const delta = touchStartPinchDist - dist;
-                        cameraDistance = Math.max(5, Math.min(30, cameraDistance + delta * 0.05));
-                    }
-                    touchStartPinchDist = dist;
-                    return;
-                }
-
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
-
-                const deltaX = clientX - previousPointerPos.x;
-                const deltaY = clientY - previousPointerPos.y;
-
-                // Orbit Horizontal Yaw
-                cameraYaw -= deltaX * 0.006;
-                // Orbit Vertical Pitch (Clamped)
-                cameraPitch += deltaY * 0.005;
-                cameraPitch = Math.max(0.15, Math.min(Math.PI / 2 - 0.05, cameraPitch));
-
-                previousPointerPos = { x: clientX, y: clientY };
-            };
-
-            const onPointerUp = () => {
-                isPointerDragging = false;
-                touchStartPinchDist = 0;
-            };
-
-            // Mouse Wheel Zoom Listener
-            const onWheel = (e) => {
-                cameraDistance += e.deltaY * 0.015;
-                cameraDistance = Math.max(5, Math.min(30, cameraDistance));
-            };
-
-            container.addEventListener('mousedown', onPointerDown);
-            window.addEventListener('mousemove', onPointerMove);
-            window.addEventListener('mouseup', onPointerUp);
-
-            container.addEventListener('touchstart', onPointerDown, { passive: true });
-            window.addEventListener('touchmove', onPointerMove, { passive: true });
-            window.addEventListener('touchend', onPointerUp);
-
-            container.addEventListener('wheel', onWheel, { passive: true });
-        }
-
-        // Movement Key & Touch Control Handling
-        function setupControls() {
-            window.addEventListener('keydown', (e) => {
-                activeKeys[e.key.toLowerCase()] = true;
-            });
-            window.addEventListener('keyup', (e) => {
-                activeKeys[e.key.toLowerCase()] = false;
-            });
-        }
-
-        function startMove(dir) { activeTouchMove = dir; }
-        function stopMove() { activeTouchMove = null; }
-
-        // Sync 3D Avatars for Other Multiplayer Online Heroes
-        function syncOtherPlayer3DMeshes() {
-            if (!scene) return;
-
-            const playerIds = Object.keys(lobbyPlayers);
-            document.getElementById('sim-online-counter').innerText = `${playerIds.length} Online`;
-
-            // Remove disconnected player 3D meshes
-            Object.keys(otherPlayerMeshes).forEach(id => {
-                if (!lobbyPlayers[id]) {
-                    scene.remove(otherPlayerMeshes[id]);
-                    delete otherPlayerMeshes[id];
-                }
-            });
-
-            // Create/Update active 3D meshes
-            playerIds.forEach(id => {
-                if (id === myUserId) return;
-                const p = lobbyPlayers[id];
-
-                if (!otherPlayerMeshes[id]) {
-                    const heroGroup = new THREE.Group();
-                    const bodyGeo = new THREE.CylinderGeometry(0.4, 0.2, 1.2, 8);
-                    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x10b981 });
-                    const body = new THREE.Mesh(bodyGeo, bodyMat);
-                    body.position.y = 0.6;
-                    heroGroup.add(body);
-
-                    const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
-                    const headMat = new THREE.MeshStandardMaterial({ color: 0x34d399 });
-                    const head = new THREE.Mesh(headGeo, headMat);
-                    head.position.y = 1.35;
-                    heroGroup.add(head);
-
-                    otherPlayerMeshes[id] = heroGroup;
-                    scene.add(heroGroup);
-                }
-
-                otherPlayerMeshes[id].position.set(p.x || 0, 0.8, p.z || 0);
-            });
-        }
-
-        // Spawn 3D Spell Strike Particle FX
-        function spawn3DSpellParticles(x, y, z, colorHex) {
-            for (let i = 0; i < 20; i++) {
-                const pGeo = new THREE.SphereGeometry(0.15, 6, 6);
-                const pMat = new THREE.MeshBasicMaterial({ color: colorHex });
-                const pMesh = new THREE.Mesh(pGeo, pMat);
-                pMesh.position.set(x, y, z);
-
-                const vx = (Math.random() - 0.5) * 0.3;
-                const vy = (Math.random() - 0.5) * 0.3 + 0.2;
-                const vz = (Math.random() - 0.5) * 0.3;
-
-                spellParticles.push({ mesh: pMesh, vx, vy, vz, life: 1.0 });
-                scene.add(pMesh);
-            }
-        }
-
-        // 3D MAIN GAME LOOP
-        function animate3DLoop(time) {
-            const clockTime = time * 0.001;
-
-            // Camera Relative Movement Calculation
-            const moveSpeed = 0.18;
-            let moveX = 0;
-            let moveZ = 0;
-
-            if (activeKeys['w'] || activeKeys['arrowup'] || activeTouchMove === 'up') { moveZ -= 1; }
-            if (activeKeys['s'] || activeKeys['arrowdown'] || activeTouchMove === 'down') { moveZ += 1; }
-            if (activeKeys['a'] || activeKeys['arrowleft'] || activeTouchMove === 'left') { moveX -= 1; }
-            if (activeKeys['d'] || activeKeys['arrowright'] || activeTouchMove === 'right') { moveX += 1; }
-
-            if (moveX !== 0 || moveZ !== 0) {
-                // Normalize input vector
-                const len = Math.hypot(moveX, moveZ);
-                moveX /= len;
-                moveZ /= len;
-
-                // Translate movement relative to current Camera Yaw angle
-                const sinY = Math.sin(cameraYaw);
-                const cosY = Math.cos(cameraYaw);
-
-                const worldMoveX = moveX * cosY - moveZ * sinY;
-                const worldMoveZ = moveX * sinY + moveZ * cosY;
-
-                playerPos.x += worldMoveX * moveSpeed;
-                playerPos.z += worldMoveZ * moveSpeed;
-
-                // Clamp World Map Bounds (-38 to +38 units)
-                playerPos.x = Math.max(-38, Math.min(38, playerPos.x));
-                playerPos.z = Math.max(-38, Math.min(38, playerPos.z));
-
-                // Turn Hero Mesh to Face Movement Direction
-                if (playerMesh) {
-                    const targetRotation = Math.atan2(worldMoveX, worldMoveZ);
-                    playerMesh.rotation.y = targetRotation;
-                    playerMesh.position.y = 0.8 + Math.sin(clockTime * 12) * 0.1;
-                }
-
-                if (Math.random() > 0.85) pushMyData();
-            } else if (playerMesh) {
-                playerMesh.position.y = 0.8;
-            }
-
-            if (playerMesh) {
-                playerMesh.position.set(playerPos.x, playerMesh.position.y, playerPos.z);
-            }
-
-            // --- CALCULATE MOVABLE CAMERA POSITION (ORBIT PERSPECTIVE) ---
-            const camOffsetX = cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
-            const camOffsetY = cameraDistance * Math.sin(cameraPitch);
-            const camOffsetZ = cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
-
-            camera.position.x = playerPos.x + camOffsetX;
-            camera.position.y = playerPos.y + camOffsetY;
-            camera.position.z = playerPos.z + camOffsetZ;
-
-            // Look directly at Hero position
-            camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
-
-            // Animate Boss Hovering
-            if (bossMesh) {
-                bossMesh.position.y = Math.sin(clockTime * 2) * 0.3;
-                bossMesh.rotation.y = Math.sin(clockTime * 0.5) * 0.2;
-            }
-
-            // Animate 3D Particles
-            for (let i = spellParticles.length - 1; i >= 0; i--) {
-                const p = spellParticles[i];
-                p.mesh.position.x += p.vx;
-                p.mesh.position.y += p.vy;
-                p.mesh.position.z += p.vz;
-                p.life -= 0.03;
-
-                if (p.life <= 0) {
-                    scene.remove(p.mesh);
-                    spellParticles.splice(i, 1);
-                }
-            }
-
-            // Check Proximity to 3D World Zones
-            activeZonePrompt = null;
-            WORLD_ZONES.forEach(z => {
-                const dist = Math.hypot(playerPos.x - z.x, playerPos.z - z.z);
-                if (dist < z.radius + 1.2) {
-                    activeZonePrompt = z;
-                }
-            });
-
-            // Update Interaction HUD Button
-            const promptEl = document.getElementById('zone-interaction-prompt');
-            if (activeZonePrompt) {
-                document.getElementById('zone-action-text').innerText = `Interact: ${activeZonePrompt.name}`;
-                document.getElementById('zone-action-btn').onclick = () => openZoneModal(activeZonePrompt.id);
-                promptEl.classList.remove('hidden');
-            } else {
-                promptEl.classList.add('hidden');
-            }
-
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate3DLoop);
-        }
-
-        function addQ(subject, amount) {
-            if (!myData.questions) myData.questions = { maths: 0, physics: 0, chem: 0 };
-            const curr = myData.questions[subject] || 0;
-            myData.questions[subject] = Math.max(0, curr + amount);
-            
-            if (amount > 0) {
-                const tokenGain = 15;
-                myData.tokens = (myData.tokens || 0) + tokenGain;
-                spawn3DSpellParticles(playerPos.x, playerPos.y + 1, playerPos.z, 0xf59e0b);
-                triggerCongratulationsToast(`Question Solved! +10 XP & +${tokenGain} Tokens 🪙`);
-            }
-
-            saveLocalMyData();
-            pushMyData();
-            updateUI();
-        }
-
-        function renderShop() {
-            const titlesContainer = document.getElementById('shop-titles-list');
-            titlesContainer.innerHTML = '';
-            MARKET_ITEMS.titles.forEach(item => {
-                const owned = (myData.inventory || []).includes(item.id);
-                const equipped = myData.equippedTitle === item.id;
-
-                const card = document.createElement('div');
-                card.className = "bg-slate-800/80 border border-slate-700/60 rounded-xl p-3 flex justify-between items-center";
-                card.innerHTML = `
-                    <div>
-                        <div class="text-xs font-bold text-amber-400">${item.name}</div>
-                    </div>
-                    ${equipped ? `<span class="text-[10px] bg-blue-900/60 text-blue-300 font-bold px-2 py-1 rounded">EQUIPPED</span>` :
-                      owned ? `<button onclick="equipCosmetic('title', '${item.id}')" class="text-[10px] bg-slate-700 text-white font-bold px-2 py-1 rounded">EQUIP</button>` :
-                      `<button onclick="buyCosmetic('${item.id}', ${item.cost})" class="text-[10px] bg-amber-600 text-white font-bold px-2 py-1 rounded flex items-center gap-1"><i class="fa-solid fa-coins"></i> ${item.cost}</button>`
-                    }
-                `;
-                titlesContainer.appendChild(card);
-            });
-        }
-
-        function buyCosmetic(itemId, cost) {
-            if ((myData.tokens || 0) < cost) {
-                showAlert(`Not enough tokens! You need ${cost} tokens.`, "Insufficient Tokens");
-                return;
-            }
-            myData.tokens -= cost;
-            if (!myData.inventory) myData.inventory = [];
-            myData.inventory.push(itemId);
-            saveLocalMyData(); pushMyData(); updateUI();
-        }
-
-        function equipCosmetic(type, val) {
-            if (type === 'title') myData.equippedTitle = myData.equippedTitle === val ? "" : val;
-            saveLocalMyData(); pushMyData(); updateUI();
-        }
-
-        function copyGeminiPrompt() {
-            const type = document.getElementById('home-builder-type').value;
-            const hours = document.getElementById('home-builder-hours').value || 24;
-            const promptText = `Act as an expert JEE Exam Coach. Generate a ${type.toUpperCase()} sprint plan to complete within ${hours} hours in JSON format with title and tasks array.`;
-            navigator.clipboard.writeText(promptText);
-            showAlert("Gemini Prompt Copied!", "Prompt Copied");
-        }
-
-        function importAIPlanJSON() {
-            const raw = document.getElementById('ai-json-import-input').value.trim();
-            if (!raw) return;
-            try {
-                const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
-                const parsed = JSON.parse(cleaned);
-                document.getElementById('home-builder-title').value = parsed.title;
-                const container = document.getElementById('home-builder-tasks');
-                container.innerHTML = '';
-                parsed.tasks.forEach(t => {
-                    const row = document.createElement('div');
-                    row.className = "flex gap-2 items-center";
-                    row.innerHTML = `
-                        <input type="text" value="${t.title}" class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
-                        <input type="number" value="${t.xp || 200}" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
-                    `;
-                    container.appendChild(row);
-                });
-            } catch (err) { showAlert("Error parsing JSON", "Import Error"); }
-        }
-
-        function initHomeBuilderRows() {
-            const container = document.getElementById('home-builder-tasks');
-            container.innerHTML = '';
-            addHomeBuilderTaskRow();
-        }
-
-        function addHomeBuilderTaskRow() {
-            const container = document.getElementById('home-builder-tasks');
-            const row = document.createElement('div');
-            row.className = "flex gap-2 items-center";
-            row.innerHTML = `
-                <input type="text" placeholder="Task description..." class="home-task-title flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
-                <input type="number" placeholder="XP" value="250" class="home-task-xp w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100">
-            `;
-            container.appendChild(row);
-        }
-
-        function saveHomePlan() {
-            const title = document.getElementById('home-builder-title').value.trim();
-            if (!title) return;
-            const titles = document.querySelectorAll('.home-task-title');
-            const xps = document.querySelectorAll('.home-task-xp');
-            const tasks = [];
-            titles.forEach((el, idx) => {
-                if (el.value.trim()) {
-                    tasks.push({ id: 'tsk_' + Math.random().toString(36).substr(2, 6), title: el.value.trim(), xp: parseInt(xps[idx].value) || 100 });
-                }
-            });
-            myActivePlan = { id: 'pln_' + Math.random().toString(36).substr(2, 6), title, tasks };
-            localStorage.setItem('jee_active_plan', JSON.stringify(myActivePlan));
-            saveLocalMyData(); pushMyData(); updateUI();
-        }
-
-        function resetHomePlan() {
-            myActivePlan = null;
-            localStorage.removeItem('jee_active_plan');
-            saveLocalMyData(); pushMyData(); initHomeBuilderRows(); updateUI();
-        }
-
-        function toggleTask(taskId) {
-            if (!myData.completedTasks) myData.completedTasks = {};
-            myData.completedTasks[taskId] = !myData.completedTasks[taskId];
-            spawn3DSpellParticles(playerPos.x, playerPos.y + 1, playerPos.z, 0x10b981);
-            saveLocalMyData(); pushMyData(); updateUI();
-        }
-
-        function renderActivePlan() {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
-            (myActivePlan?.tasks || []).forEach(t => {
-                const isChecked = !!myData.completedTasks[t.id];
-                const card = document.createElement('div');
-                card.className = "p-2.5 rounded-xl border flex items-center justify-between bg-slate-900 border-slate-800";
-                card.innerHTML = `
-                    <div onclick="toggleTask('${t.id}')" class="flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid ${isChecked ? 'fa-square-check text-emerald-400' : 'fa-square text-slate-600'}"></i>
-                        <span class="text-xs ${isChecked ? 'line-through text-slate-400' : 'text-slate-100'}">${t.title}</span>
-                    </div>
-                    <span class="text-xs font-bold text-amber-400 code-font">+${t.xp}XP</span>
-                `;
-                list.appendChild(card);
-            });
-        }
-
-        function renderBattleRivals() {
-            const container = document.getElementById('battle-rivals-container');
-            container.innerHTML = '';
-            Object.keys(lobbyPlayers).filter(id => id !== myUserId).forEach((id, idx) => {
-                const p = lobbyPlayers[id];
-                const stats = calculateXP(p);
-                const card = document.createElement('div');
-                card.className = "bg-slate-800 p-2.5 rounded-xl flex justify-between text-xs";
-                card.innerHTML = `<span>#${idx+1} ${p.name || 'Hero'}</span><b class="text-amber-400">${stats.xp} XP</b>`;
-                container.appendChild(card);
-            });
-        }
-    </script>
+    }
+    window.addEventListener('online',  updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+</script>
 </body>
 </html>
-
